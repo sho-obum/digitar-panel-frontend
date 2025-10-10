@@ -7,7 +7,6 @@ import { useState } from "react"
 import { format, startOfMonth, endOfMonth, subMonths, subDays } from "date-fns"
 import { Calendar } from "@/components/calendar-with-presets"
 import { Button } from "@/components/ui/button"
-import { GradientText } from "@/components/ui/gradient-text"
 import {
   Popover,
   PopoverContent,
@@ -420,13 +419,7 @@ export default function Page() {
                 {getDateRangeText()}
               </div>
               {isPopoverOpen ? (
-                <GradientText 
-                  colors={["#3b82f6", "#8b5cf6", "#06b6d4"]}
-                  animationSpeed={3}
-                  className="ml-2"
-                >
-                  <CalendarDays className="h-4 w-4 rotate-180" />
-                </GradientText>
+                <CalendarDays className="h-4 w-4 rotate-180 text-foreground" />
               ) : (
                 <CalendarDays className="h-4 w-4 rotate-90 text-muted-foreground" />
               )}
@@ -434,8 +427,8 @@ export default function Page() {
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0 bg-background rounded-xl shadow-xl border border-border" align="end">
             <div className="flex">
-              {/* Presets - Reduced width */}
-              <div className="border-r border-border p-3 min-w-[120px]">
+              {/* Presets  */}
+              <div className="border-r border-border p-3 max-w-[160px]">
                 <div className="space-y-1">
                   {datePresets.map((preset) => (
                     <Button
@@ -450,24 +443,13 @@ export default function Page() {
                           preset: preset.id
                         })
                       }}
-                      className={`w-full justify-start text-left h-8 px-2 text-xs transition-all duration-200 ${
+                      className={`w-full justify-start text-right h-8 px-2 text-xs transition-all duration-200 ${
                         dateRange.preset === preset.id 
-                          ? 'bg-primary/10 text-primary font-medium' 
+                          ? 'bg-foreground text-background font-medium' 
                           : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                       }`}
                     >
-                      {dateRange.preset === preset.id ? (
-                        <GradientText 
-                          colors={["#3b82f6", "#8b5cf6", "#06b6d4"]}
-                          animationSpeed={3}
-                        >
-                          {preset.label}
-                        </GradientText>
-                      ) : (
-                        <span className="gradient-hover transition-all duration-300">
-                          {preset.label}
-                        </span>
-                      )}
+                      {preset.label}
                     </Button>
                   ))}
                 </div>
