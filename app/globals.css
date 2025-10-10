@@ -65,6 +65,83 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  @keyframes fadeSlideIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+    }
+  }
+  @keyframes slideRightIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+    }
+  }
+  @keyframes testimonialIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+    }
+  }
+  @keyframes fadeSlideIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+    }
+  }
+  @keyframes slideRightIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+    }
+  }
+  @keyframes testimonialIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+    }
+  }
+  --animate-gradient: gradient var(--animation-duration, 8s) linear infinite;
+
+  @keyframes gradient {
+    0% {
+      backgroundPosition: 0% 50%;
+    }
+    50% {
+      backgroundPosition: 100% 50%;
+    }
+    100% {
+      backgroundPosition: 0% 50%;
+    }
+  }
+  @keyframes gradient {
+  0% {
+    backgroundPosition: 0% 50%;
+    }
+  50% {
+    backgroundPosition: 100% 50%;
+    }
+  100% {
+    backgroundPosition: 0% 50%;
+    }
+  }
+  @keyframes gradient {
+  0% {
+    backgroundPosition: 0% 50%;
+    }
+  50% {
+    backgroundPosition: 100% 50%;
+    }
+  100% {
+    backgroundPosition: 0% 50%;
+    }
+  }
 }
 
 :root {
@@ -140,13 +217,13 @@
   * {
     @apply border-border outline-ring/50;
   }
-  
+
   html {
     transition: 
       background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   [class*="bg-"],
   [class*="border-"],
   .sidebar,
@@ -159,8 +236,7 @@
       border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
-  
+
   svg,
   [data-lucide] {
     transition: 
@@ -168,9 +244,24 @@
       stroke 0.3s cubic-bezier(0.4, 0, 0.2, 1),
       color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
+/* Custom gradient hover effects for date picker */
+.gradient-hover:hover {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-animation 3s ease infinite;
+}
+
+@keyframes gradient-animation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

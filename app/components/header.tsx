@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, Moon, Search, Sun } from "lucide-react"
+import { Bell, Moon, Search, Sun, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -95,6 +95,36 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
           <Moon className="h-4 w-4 rotate-90 scale-0 transition-all duration-500 ease-in-out dark:rotate-0 dark:scale-100 absolute" />
           <span className="sr-only">Toggle theme</span>
         </Button>
+
+        {/* Profile Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-9 w-9">
+              <User className="h-4 w-4" />
+              <span className="sr-only">Profile menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium">Username</p>
+                <p className="text-xs text-muted-foreground">user@example.com</p>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <span>Profile Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <span>Account</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <span>Billing</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem>
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Notifications */}
         <DropdownMenu>

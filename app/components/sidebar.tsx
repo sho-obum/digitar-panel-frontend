@@ -14,7 +14,6 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
@@ -34,7 +33,9 @@ const data = {
   teams: [
     {
       name: "Digitar Media",
-      logo: GalleryVerticalEnd,
+      logo: "https://panel.digitarmedia.com/admin/uploads/d-logo1747116449.png",
+      logoLight: "https://panel.digitarmedia.com/admin/uploads/d-logo1747116449.png",
+      logoDark: "https://panel.digitarmedia.com/admin/uploads/digitarWhite1759991560.png",
       plan: "Enterprise Plan",
     },
   ],
@@ -155,7 +156,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        {/* Profile moved to header - footer now empty */}
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
