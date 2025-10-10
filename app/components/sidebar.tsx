@@ -41,21 +41,21 @@ const data = {
   ],
   navMain: [
     {
-      title: "Heading 1",
+      title: "Campaigns",
       url: "#",
       icon: SquareTerminal,
       isActive: true,
       items: [
         {
-          title: "Sub Item 1",
+          title: "Create Campaign",
+          url: "/campaign/create-campaign",
+        },
+        {
+          title: "Manage Campaigns",
           url: "#",
         },
         {
-          title: "Sub Item 2",
-          url: "#",
-        },
-        {
-          title: "Sub Item 3",
+          title: "All Campaigns",
           url: "#",
         },
       ],

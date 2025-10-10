@@ -41,7 +41,7 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 backdrop-blur-md bg-background/80 border-b border-border/50 supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-2 px-4">
-        <SidebarTrigger className="-ml-1" />
+        <SidebarTrigger className="-ml-1 scale-75" />
         <Separator
           orientation="vertical"
           className="mr-2 data-[orientation=vertical]:h-4"
