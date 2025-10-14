@@ -41,6 +41,12 @@ const data = {
   ],
   navMain: [
     {
+      title: "Dashboard",
+      url: "/",
+      icon: PieChart,
+      isActive: true,
+    },
+    {
       title: "Campaigns",
       url: "#",
       icon: SquareTerminal,
