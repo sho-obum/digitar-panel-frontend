@@ -13,6 +13,12 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Check,
   Clock,
   Circle,
@@ -23,7 +29,10 @@ import {
   CircleAlert,
 } from "lucide-react";
 import { FaLinkedin } from "react-icons/fa";
+import { HiOutlineInformationCircle } from "react-icons/hi";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { TourPopover } from "@/components/ruixen/tour-popover";
+import { CheckCircle, Mail } from "lucide-react";
 
 /* Timeline Component                                   */
 function Timeline({ currentStep }: { currentStep: number }) {
@@ -103,6 +112,7 @@ type Contact = {
   phone: string;
   email: string;
   linkedin?: string;
+  fetched?: boolean; // whether LinkedIn was fetched for this contact
 };
 
 function ContactScanner({
@@ -123,32 +133,7 @@ function ContactScanner({
 
   return (
     <div className="space-y-6">
-      {/* Calming message bar */}
-      <div
-        className={`p-3 rounded-lg transition-all duration-500 ${
-          isScanning
-            ? "bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200/40"
-            : "bg-gradient-to-r from-green-50 to-emerald-50 border border-green-300/40"
-        }`}
-      >
-        <p
-          className={`text-sm font-medium flex items-center gap-2 bg-transparent ${
-            isScanning ? "text-blue-700" : "text-green-700"
-          }`}
-        >
-          {isScanning ? (
-            <>
-              <span className="animate-pulse">⏳</span>✓ Approved — Sit tight!
-              We're scanning for contacts...
-            </>
-          ) : (
-            <>
-              <span>✓</span>
-              All done! {total} contacts found — Ready to compose email
-            </>
-          )}
-        </p>
-      </div>
+      {/* (removed calming message bar) */}
 
       {/* header with loader + text */}
       <div className="flex items-center gap-3">
@@ -163,26 +148,14 @@ function ContactScanner({
         </div>
       </div>
 
-      <div
-        className={`overflow-hidden rounded-lg border transition-all duration-500 ${
-          isScanning
-            ? "border-gray-200/30 bg-gray-100/40"
-            : "border-border/50 bg-muted/30"
-        }`}
-      >
-        <table className="w-full text-sm">
-          <thead
-            className={`text-xs uppercase transition-all duration-500 ${
-              isScanning
-                ? "bg-gray-100/40 text-gray-300"
-                : "bg-muted/50 text-muted-foreground"
-            }`}
-          >
-            <tr>
-              <th className="p-3 text-left w-[28%]">Name</th>
-              <th className="p-3 text-left w-[28%]">Mail</th>
-              <th className="p-3 text-left w-[22%]">Phone</th>
-              <th className="p-3 text-left w-[22%]">LinkedIn</th>
+      <div className="overflow-hidden rounded-lg border border-gray-200/30 transition-all duration-500">
+        <table className="w-full text-sm text-gray-500">
+          <thead className="text-xs uppercase text-gray-400 transition-all duration-500">
+            <tr className="border-b border-gray-200/40">
+              <th className="p-3 text-center w-[28%] border-r border-gray-200/30">Name</th>
+              <th className="p-3 text-center w-[28%] border-r border-gray-200/30">Mail</th>
+              <th className="p-3 text-center w-[22%] border-r border-gray-200/30">Phone</th>
+              <th className="p-3 text-center w-[22%]">LinkedIn</th>
             </tr>
           </thead>
           <tbody>
@@ -190,55 +163,58 @@ function ContactScanner({
               c ? (
                 <tr
                   key={i}
-                  className={`border-t border-border/30 animate-[scanIn_0.4s_ease-out_1] transition-all duration-500 ${
-                    isScanning ? "text-gray-300" : ""
-                  }`}
+                  className="animate-[scanIn_0.4s_ease-out_1] transition-all duration-500"
                   style={{ animationDelay: `${i * 120}ms` }}
                 >
-                  <td className="p-3">{c.name}</td>
-                  <td className="p-3 truncate">{c.mail}</td>
-                  <td className="p-3 md:whitespace-nowrap">{c.phone}</td>
-                  <td className="p-3 truncate">
-                    {
-                      // always show a link; if no linkedin provided, fallback to a buzz search
-                    }
-                    <a
-                      href={
-                        c.linkedin
-                          ? c.linkedin
-                          : `https://www.bing.com/search?q=${encodeURIComponent(
-                              `${c.name} linkedin`
-                            )}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-blue-600 ml-2"
-                    >
-                      <FaLinkedin className="w-4 h-4 text-blue-600" />
-                      View
-                    </a>
+                  <td className="p-3 border-r border-gray-200/30">{c.name}</td>
+                  <td className="p-3 truncate border-r border-gray-200/30">{c.mail}</td>
+                  <td className="p-3 md:whitespace-nowrap border-r border-gray-200/30">{c.phone}</td>
+                  <td className="p-3 truncate text-center">
+                    {c.fetched ? (
+                      <a
+                        href={
+                          c.linkedin
+                            ? c.linkedin
+                            : `https://www.bing.com/search?q=${encodeURIComponent(
+                                `${c.name} linkedin`
+                              )}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-500"
+                        aria-label={`View ${c.name} on LinkedIn`}
+                      >
+                        <span className="text-xs text-gray-400">Fetched</span>
+                        <FaLinkedin className="w-4 h-4 text-gray-400" />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-400">Fetching...</span>
+                    )}
                   </td>
                 </tr>
               ) : null
             )}
 
             {placeholderRows.map((_, i) => (
-              <tr key={`ph-${i}`} className="border-t border-border/30">
-                {Array.from({ length: 4 }).map((__, j) => (
-                  <td key={j} className="p-3">
-                    <div
-                      className={`h-4 w-full overflow-hidden rounded transition-all duration-500 ${
-                        isScanning ? "bg-gray-200/30" : "bg-border/40"
-                      }`}
-                    >
-                      <div
-                        className={`h-full w-1/3 animate-[shimmer_1.2s_infinite] ${
-                          isScanning ? "bg-gray-200/40" : "bg-border/60"
-                        }`}
-                      />
-                    </div>
-                  </td>
-                ))}
+              <tr key={`ph-${i}`}>
+                <td className="p-3 border-r border-gray-200/30">
+                  <div className="h-4 w-full overflow-hidden rounded transition-all duration-500 bg-gray-200/30">
+                    <div className="h-full w-1/3 animate-[shimmer_1.2s_infinite] bg-gray-200/40" />
+                  </div>
+                </td>
+                <td className="p-3 border-r border-gray-200/30">
+                  <div className="h-4 w-full overflow-hidden rounded transition-all duration-500 bg-gray-200/30">
+                    <div className="h-full w-1/3 animate-[shimmer_1.2s_infinite] bg-gray-200/40" />
+                  </div>
+                </td>
+                <td className="p-3 border-r border-gray-200/30">
+                  <div className="h-4 w-full overflow-hidden rounded transition-all duration-500 bg-gray-200/30">
+                    <div className="h-full w-1/3 animate-[shimmer_1.2s_infinite] bg-gray-200/40" />
+                  </div>
+                </td>
+                <td className="p-3 text-center">
+                  <span className="text-xs text-gray-400">Fetching...</span>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -288,8 +264,8 @@ export default function CreateCampaignPage() {
   const [showDetails, setShowDetails] = useState(false);
 
   const [isApproved, setIsApproved] = useState(false);
-  const [isApproving, setIsApproving] = useState(false); // center approve animation
-  const [isScanning, setIsScanning] = useState(false); // table scan animation
+  const [isApproving, setIsApproving] = useState(false); 
+  const [isScanning, setIsScanning] = useState(false); 
 
   const [showWrongInput, setShowWrongInput] = useState(false);
   const [wrongContactLink, setWrongContactLink] = useState("");
@@ -297,9 +273,12 @@ export default function CreateCampaignPage() {
   const [displayedContacts, setDisplayedContacts] = useState<Contact[]>([]);
   const totalToScan = 8;
   const [scanComplete, setScanComplete] = useState(false);
+  const [step3Pulse, setStep3Pulse] = useState(false);
 
   const [emailSubject, setEmailSubject] = useState("");
   const [emailContent, setEmailContent] = useState("");
+
+  const [hasSeenTour, setHasSeenTour] = useState(false);
 
   /* Step calculation */
   const getCurrentStep = () => {
@@ -315,18 +294,17 @@ export default function CreateCampaignPage() {
     return 3;
   };
 
-  /* Step-1 fetch simulation */
+  /* Step-1 */
   const handleFetch = () => {
     if (!appUrl.trim()) return;
     setIsFetchingApp(true);
     setTimeout(() => {
       setIsFetchingApp(false);
       setShowDetails(true);
-      // after details are shown, scroll to confirm details and focus the approve button
+     
       setTimeout(() => {
         const el = document.getElementById("confirm-details");
         if (el && typeof window !== "undefined") {
-          // compute a top that centers the element in the viewport
           const rect = el.getBoundingClientRect();
           const target =
             window.pageYOffset +
@@ -341,13 +319,12 @@ export default function CreateCampaignPage() {
         const btn = document.getElementById(
           "approve-btn"
         ) as HTMLButtonElement | null;
-        // focus after a short delay so user sees the scroll animation first
         if (btn) setTimeout(() => btn.focus(), 600);
       }, 120);
     }, 1800);
   };
 
-  /* Contacts and statuses */
+  /* Contacts */
   const contactsPool: Contact[] = [
     {
       name: "Ananya Sharma",
@@ -433,10 +410,24 @@ export default function CreateCampaignPage() {
     setDisplayedContacts([]);
     let i = 0;
     const intv = setInterval(() => {
-      setDisplayedContacts((prev) => {
-        const next = contactsPool[i];
-        return next ? [...prev, next] : prev; // guard
-      });
+      // when we push a contact, mark it as not fetched yet; then mark fetched after 3s
+      const contactToAdd = contactsPool[i];
+      if (contactToAdd) {
+        const contactWithState: Contact = { ...contactToAdd, fetched: false };
+        setDisplayedContacts((prev) => [...prev, contactWithState]);
+        // schedule fetched state flip after 3s for this contact
+        setTimeout(() => {
+          setDisplayedContacts((prev) => {
+            const index = prev.findIndex(
+              (p) => p.mail === contactWithState.mail && !p.fetched
+            );
+            if (index === -1) return prev; // already updated or removed
+            const next = [...prev];
+            next[index] = { ...next[index], fetched: true };
+            return next;
+          });
+        }, 3000);
+      }
       i += 1;
       if (i >= totalToScan) {
         clearInterval(intv);
@@ -445,6 +436,26 @@ export default function CreateCampaignPage() {
           setScanComplete(true);
           // reset complete animation after 3 seconds
           setTimeout(() => setScanComplete(false), 3000);
+          
+          // Scroll to Step 3 and pulse border for 5 seconds
+          setTimeout(() => {
+            const step3El = document.getElementById("email-composition");
+            if (step3El && typeof window !== "undefined") {
+              const rect = step3El.getBoundingClientRect();
+              const target = window.pageYOffset + rect.top - (window.innerHeight / 2) + rect.height / 2;
+              window.scrollTo({ top: Math.max(0, Math.floor(target)), behavior: "smooth" });
+            }
+            // Trigger pulse
+            setStep3Pulse(true);
+            setTimeout(() => setStep3Pulse(false), 5000);
+          }, 500);
+
+          // Scroll to top after 2 seconds
+          setTimeout(() => {
+            if (typeof window !== "undefined") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }, 2000);
         }, 700);
       }
     }, 480);
@@ -462,7 +473,7 @@ export default function CreateCampaignPage() {
 
   /* Wrong flow */
   const handleWrong = () => {
-    setShowWrongInput(true); // show input row, hide buttons
+    setShowWrongInput(true); // show input row && hide buttons
   };
 
   const handleWrongSubmit = () => {
@@ -524,10 +535,27 @@ export default function CreateCampaignPage() {
             }`}
           >
             <CardHeader>
-              <CardTitle>App Details</CardTitle>
-              <CardDescription>
-                Enter the app store URL to fetch details
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>App Details</CardTitle>
+                  <CardDescription>
+                    Enter the app store URL to fetch details
+                  </CardDescription>
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HiOutlineInformationCircle className="w-5 h-5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="right"
+                      className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
+                    >
+                      <p>Enter the app store URL to automatically fetch app details and organization information.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="flex gap-3">
@@ -564,30 +592,116 @@ export default function CreateCampaignPage() {
           >
             {!(isApproving || isScanning || isApproved) && (
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Confirm Details
-                  {isApproved && (
-                    <span className="text-green-600 text-sm">✓ Approved</span>
-                  )}
-                </CardTitle>
-                <CardDescription>
-                  {isApproved
-                    ? "Contacts identified and ready below."
-                    : "Review the app & org details."}
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      Confirm Details
+                      {isApproved && (
+                        <span className="text-green-600 text-sm">✓ Approved</span>
+                      )}
+                    </CardTitle>
+                    <CardDescription>
+                      {isApproved
+                        ? "Contacts identified and ready below."
+                        : "Review the app & org details."}
+                    </CardDescription>
+                  </div>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HiOutlineInformationCircle className="w-5 h-5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="right"
+                        className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
+                      >
+                        <p>Review and approve the fetched app and organization details. Once approved, we'll scan for contact information.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               </CardHeader>
             )}
 
             <CardContent>
-              {/* A) fetching app */}
-              {isFetchingApp && (
-                <div className="flex justify-center py-10">
-                  <LottieLoader size={120} />
+              {/* Skeleton when Step 2 is not active (user at Step 1) */}
+              {getCurrentStep() < 2 && (
+                <div className="relative">
+                  <div className="space-y-6 animate-pulse py-6 opacity-40">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <div className="h-6 bg-border/60 rounded w-1/2 mx-auto" />
+                        <div className="flex flex-col items-center space-y-3">
+                          <div className="w-20 h-20 bg-border/60 rounded-full" />
+                          <div className="h-5 bg-border/50 rounded w-3/4" />
+                          <div className="h-4 bg-border/40 rounded w-1/2" />
+                          <div className="h-4 bg-border/40 rounded w-2/3" />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="h-6 bg-border/60 rounded w-1/2 mx-auto" />
+                        <div className="flex flex-col items-center space-y-3">
+                          <div className="w-20 h-20 bg-border/60 rounded-full" />
+                          <div className="h-5 bg-border/50 rounded w-3/4" />
+                          <div className="h-4 bg-border/40 rounded w-2/3" />
+                          <div className="h-4 bg-border/40 rounded w-2/3" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-center gap-3 pt-4">
+                      <div className="h-10 bg-border/50 rounded w-28" />
+                      <div className="h-10 bg-border/50 rounded w-28" />
+                    </div>
+                  </div>
+                  {/* Loader overlay when fetching from Step 1 */}
+                  {isFetchingApp && (
+                    <div className="absolute inset-0 flex justify-center items-center bg-background/60 backdrop-blur-[2px]">
+                      <LottieLoader size={120} />
+                    </div>
+                  )}
                 </div>
               )}
 
+              {/* A) fetching app - loader overlay on skeleton */}
+              {getCurrentStep() >= 2 && isFetchingApp && (
+                <div className="relative">
+                  {/* Show skeleton beneath loader */}
+                  <div className="space-y-6 animate-pulse py-6 opacity-20">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                        <div className="h-6 bg-border/60 rounded w-1/2 mx-auto" />
+                        <div className="flex flex-col items-center space-y-3">
+                          <div className="w-20 h-20 bg-border/60 rounded-full" />
+                          <div className="h-5 bg-border/50 rounded w-3/4" />
+                          <div className="h-4 bg-border/40 rounded w-1/2" />
+                          <div className="h-4 bg-border/40 rounded w-2/3" />
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        <div className="h-6 bg-border/60 rounded w-1/2 mx-auto" />
+                        <div className="flex flex-col items-center space-y-3">
+                          <div className="w-20 h-20 bg-border/60 rounded-full" />
+                          <div className="h-5 bg-border/50 rounded w-3/4" />
+                          <div className="h-4 bg-border/40 rounded w-2/3" />
+                          <div className="h-4 bg-border/40 rounded w-2/3" />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-center gap-3 pt-4">
+                      <div className="h-10 bg-border/50 rounded w-28" />
+                      <div className="h-10 bg-border/50 rounded w-28" />
+                    </div>
+                  </div>
+                  {/* Loader overlay */}
+                  <div className="absolute inset-0 flex justify-center items-center bg-background/60 backdrop-blur-[2px]">
+                    <LottieLoader size={120} />
+                  </div>
+                </div>
+              )}
+              
+
               {/* B) approving animation (center) */}
-              {showDetails && isApproving && !isScanning && (
+              {getCurrentStep() >= 2 && showDetails && isApproving && !isScanning && (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
                   <LottieLoader size={120} />
                   <p className="text-sm text-muted-foreground">
@@ -597,7 +711,7 @@ export default function CreateCampaignPage() {
               )}
 
               {/* C) scanning table (replaces comparison, persists) */}
-              {showDetails && isApproved && (
+              {getCurrentStep() >= 2 && showDetails && isApproved && (
                 <ContactScanner
                   contacts={displayedContacts}
                   progress={displayedContacts.length}
@@ -608,7 +722,7 @@ export default function CreateCampaignPage() {
               )}
 
               {/* D) comparison + actions (default) */}
-              {showDetails && !isApproved && !isApproving && !isScanning && (
+              {getCurrentStep() >= 2 && showDetails && !isApproved && !isApproving && !isScanning && (
                 <div className="space-y-6">
                   <div className="relative grid grid-cols-2 gap-8">
                     <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border/50 transform -translate-x-1/2" />
@@ -736,81 +850,151 @@ export default function CreateCampaignPage() {
         {/* Right: Step 3 */}
         <div className="col-span-2">
           <Card
+            id="email-composition"
             className={`relative h-full flex flex-col transition-all duration-500 ${
               !isApproved
                 ? "bg-muted/30 animate-[glowRed_2s_ease-in-out_infinite]"
+                : step3Pulse
+                ? "animate-[glowPurple_1s_ease-in-out_5]"
                 : "shadow-[0_0_12px_rgba(74,222,128,0.4)]"
             }`}
           >
-            {!isApproved && (
-              <div className="absolute inset-0 z-10 bg-background/80 backdrop-blur-[1px] flex items-center justify-center rounded-lg">
-                <div className="text-center space-y-2">
-                  <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
-                    <span className="text-2xl">✉️</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground font-medium">
-                    Approve details to compose email
-                  </p>
-                </div>
-              </div>
-            )}
 
             <CardHeader>
-              <CardTitle>Email Composition</CardTitle>
-              <CardDescription>Compose your outreach email</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Email Composition</CardTitle>
+                  <CardDescription>Compose your outreach email</CardDescription>
+                </div>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <HiOutlineInformationCircle className="w-5 h-5 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="left"
+                      className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
+                    >
+                      <p>Compose and customize your outreach email. Use the AI suggestions to improve your message before sending.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col space-y-4">
-              <div>
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  placeholder="Partnership Opportunity with Swiggy"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                />
-              </div>
+              {/* Skeleton when Step 3 is not active */}
+              {getCurrentStep() < 3 ? (
+                <div className="space-y-4 animate-pulse">
+                  <div>
+                    <div className="h-4 bg-border/60 rounded w-16 mb-2" />
+                    <div className="h-10 bg-border/50 rounded" />
+                  </div>
 
-              <div className="flex-1 flex flex-col min-h-0">
-                <Label htmlFor="content" className="mb-2">
-                  Email Content
-                </Label>
-                <textarea
-                  id="content"
-                  className="w-full flex-1 p-3 border rounded-md resize-none min-h-[120px]"
-                  placeholder={`Dear Swiggy Team,
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <div className="h-4 bg-border/60 rounded w-24 mb-2" />
+                    <div className="h-32 bg-border/50 rounded" />
+                  </div>
+
+                  <div>
+                    <div className="h-4 bg-border/60 rounded w-20 mb-2" />
+                    <div className="p-3 bg-border/40 rounded-lg">
+                      <div className="space-y-2">
+                        <div className="h-4 bg-border/50 rounded w-3/4" />
+                        <div className="space-y-1">
+                          <div className="h-3 bg-border/40 rounded w-full" />
+                          <div className="h-3 bg-border/40 rounded w-5/6" />
+                          <div className="h-3 bg-border/40 rounded w-4/5" />
+                          <div className="h-3 bg-border/40 rounded w-3/4" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="h-10 bg-border/50 rounded" />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      placeholder="Partnership Opportunity with Swiggy"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="mt-2"
+                    />
+
+                  </div>
+
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <Label htmlFor="content" className="mb-2">
+                      Email Content
+                    </Label>
+                    <textarea
+                      id="content"
+                      className="w-full flex-1 p-3 border rounded-md resize-none min-h-[120px]"
+                      placeholder={`Dear Swiggy Team,
 
 I hope this email finds you well. I'm reaching out to explore potential partnership opportunities between our organizations...`}
-                  value={emailContent}
-                  onChange={(e) => setEmailContent(e.target.value)}
-                />
-              </div>
-
-              {/* AI Suggestions */}
-              <div>
-                <Label className="text-sm font-medium">AI Suggestions</Label>
-                <div className="mt-2 p-3 bg-muted/50 rounded-lg">
-                  <div className="space-y-2 text-sm">
-                    <p className="font-medium">💡 Suggested improvements:</p>
-                    <ul className="space-y-1 text-muted-foreground text-xs">
-                      <li>• Mention specific Swiggy features you admire</li>
-                      <li>• Include your company's relevant metrics</li>
-                      <li>• Propose a specific collaboration timeline</li>
-                      <li>• Add a clear call-to-action</li>
-                    </ul>
+                      value={emailContent}
+                      onChange={(e) => setEmailContent(e.target.value)}
+                    />
                   </div>
-                </div>
-              </div>
 
-              <Button
-                className="w-full"
-                disabled={!emailSubject.trim() || !emailContent.trim()}
-              >
-                Send Email
-              </Button>
+                  {/* AI Suggestions */}
+                  <div>
+                    <Label className="text-sm font-medium">AI Suggestions</Label>
+                    <div className="mt-2 p-3 bg-muted/50 rounded-lg">
+                      <div className="space-y-2 text-sm">
+                        <p className="font-medium">💡 Suggested improvements:</p>
+                        <ul className="space-y-1 text-muted-foreground text-xs">
+                          <li>• Mention specific Swiggy features you admire</li>
+                          <li>• Include your company's relevant metrics</li>
+                          <li>• Propose a specific collaboration timeline</li>
+                          <li>• Add a clear call-to-action</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button
+                    className="w-full"
+                    disabled={!emailSubject.trim() || !emailContent.trim()}
+                  >
+                    Send Email
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Tour Popover */}
+      {!hasSeenTour && (
+        <div className="fixed bottom-4 right-4 z-50">
+          <TourPopover
+            steps={[
+              {
+                icon: Globe,
+                title: "Step 1: App Details",
+                description: "Enter the app store URL to fetch details automatically.",
+              },
+              {
+                icon: CheckCircle,
+                title: "Step 2: Confirm Details",
+                description: "Review and approve the fetched information, then scan for contacts.",
+              },
+              {
+                icon: Mail,
+                title: "Step 3: Email Composition",
+                description: "Compose your outreach email with AI suggestions.",
+              },
+            ]}
+            triggerLabel="Take Tour"
+          />
+        </div>
+      )}
     </div>
   );
 }
