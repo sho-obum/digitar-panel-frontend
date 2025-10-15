@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,10 +109,9 @@ function LottieLoader({ size = 42 }: { size?: number }) {
 /* Step-2 Contact Scanning Table                        */
 
 type Contact = {
-  name: string;
-  mail: string;
-  phone: string;
+  person: string;
   email: string;
+  mobile: string;
   linkedin?: string;
   fetched?: boolean;
 };
@@ -135,7 +134,7 @@ function ContactScanner({
 
   return (
     <div className="space-y-6">
-      {/* (removed calming message bar) */}
+      
 
       {/* header with loader + text */}
       <div className="flex items-center gap-3">
@@ -174,12 +173,12 @@ function ContactScanner({
                   className="animate-[scanIn_0.4s_ease-out_1] transition-all duration-500"
                   style={{ animationDelay: `${i * 120}ms` }}
                 >
-                  <td className="p-3 border-r border-gray-200/30">{c.name}</td>
+                  <td className="p-3 border-r border-gray-200/30">{c.person}</td>
                   <td className="p-3 truncate border-r border-gray-200/30">
-                    {c.mail}
+                    {c.email}
                   </td>
                   <td className="p-3 md:whitespace-nowrap border-r border-gray-200/30">
-                    {c.phone}
+                    {c.mobile}
                   </td>
                   <td className="p-3 truncate text-center">
                     {c.fetched ? (
@@ -188,13 +187,13 @@ function ContactScanner({
                           c.linkedin
                             ? c.linkedin
                             : `https://www.bing.com/search?q=${encodeURIComponent(
-                                `${c.name} linkedin`
+                                `${c.person} linkedin`
                               )}`
                         }
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-500"
-                        aria-label={`View ${c.name} on LinkedIn`}
+                        aria-label={`View ${c.person} on LinkedIn`}
                       >
                         <span className="text-xs text-gray-400">Fetched</span>
                         <FaLinkedin className="w-4 h-4 text-gray-400" />
@@ -294,11 +293,41 @@ export default function CreateCampaignPage({
   const [emailSubject, setEmailSubject] = useState("");
   const [emailContent, setEmailContent] = useState("");
   const [tempEmailContent, setTempEmailContent] = useState("");
-  
+
   // Variable to store and console log HTML content
   const [editorHtmlValue, setEditorHtmlValue] = useState("");
 
   const [hasSeenTour, setHasSeenTour] = useState(false);
+
+  // API data states
+  const [appData, setAppData] = useState<any>(null);
+  const [orgData, setOrgData] = useState<any>(null);
+  const [contactsFromAPI, setContactsFromAPI] = useState<Contact[]>([]);
+
+  // Load email template when step 3 is reached
+  useEffect(() => {
+    const loadEmailTemplate = async () => {
+      if (isApproved && !emailSubject && !emailContent) {
+        try {
+          const response = await fetch('/api/email-template');
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Decode base64
+            const decodedSubject = Buffer.from(data.Subject, 'base64').toString('utf-8');
+            const decodedBody = Buffer.from(data.body, 'base64').toString('utf-8');
+            
+            setEmailSubject(decodedSubject);
+            setEmailContent(decodedBody);
+          }
+        } catch (error) {
+          console.error('Error loading email template:', error);
+        }
+      }
+    };
+
+    loadEmailTemplate();
+  }, [isApproved, emailSubject, emailContent]);
 
   /* Step calculation */
   const getCurrentStep = () => {
@@ -315,10 +344,28 @@ export default function CreateCampaignPage({
   };
 
   /* Step-1 */
-  const handleFetch = () => {
+  const handleFetch = async () => {
     if (!appUrl.trim()) return;
     setIsFetchingApp(true);
-    setTimeout(() => {
+    
+    try {
+      // Call preview-link API
+      const response = await fetch('/api/preview-link', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ previewLink: appUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch app details');
+      }
+
+      const data = await response.json();
+      setAppData(data.appData);
+      setOrgData(data.orgData);
+
       setIsFetchingApp(false);
       setShowDetails(true);
 
@@ -341,69 +388,14 @@ export default function CreateCampaignPage({
         ) as HTMLButtonElement | null;
         if (btn) setTimeout(() => btn.focus(), 600);
       }, 120);
-    }, 1800);
+    } catch (error) {
+      console.error('Error fetching app details:', error);
+      setIsFetchingApp(false);
+      alert('Failed to fetch app details. Please try again.');
+    }
   };
 
-  /* Contacts */
-  const contactsPool: Contact[] = [
-    {
-      name: "Ananya Sharma",
-      mail: "ananya.sharma@swiggy.com",
-      phone: "+91 98765 43121",
-      email: "ananya.s@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/ananya-sharma",
-    },
-    {
-      name: "Rohit Gupta",
-      mail: "rohit.gupta@swiggy.com",
-      phone: "+91 98111 23456",
-      email: "r.gupta@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/rohit-gupta",
-    },
-    {
-      name: "Priya Iyer",
-      mail: "priya.iyer@swiggy.com",
-      phone: "+91 99220 99881",
-      email: "p.iyer@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/priya-iyer",
-    },
-    {
-      name: "Karan Mehta",
-      mail: "karan.mehta@swiggy.com",
-      phone: "+91 98100 44112",
-      email: "k.mehta@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/karan-mehta",
-    },
-    {
-      name: "Meera Nair",
-      mail: "meera.nair@swiggy.com",
-      phone: "+91 98677 55342",
-      email: "m.nair@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/meera-nair",
-    },
-    {
-      name: "Aakash Verma",
-      mail: "aakash.verma@swiggy.com",
-      phone: "+91 98999 11003",
-      email: "a.verma@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/aakash-verma",
-    },
-    {
-      name: "Sanya Malhotra",
-      mail: "sanya.malhotra@swiggy.com",
-      phone: "+91 99588 77001",
-      email: "s.malhotra@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/sanya-malhotra",
-    },
-    {
-      name: "Vikram Rao",
-      mail: "vikram.rao@swiggy.com",
-      phone: "+91 98222 66880",
-      email: "v.rao@swiggy.com",
-      linkedin: "https://www.linkedin.com/in/vikram-rao",
-    },
-  ];
-
+  /* Status Messages for Contact Scanning */
   const statusMessages = [
     "Fetching contact details, numbers, and LinkedIn profiles…",
     "Validating email formats and deduplicating records…",
@@ -423,15 +415,32 @@ export default function CreateCampaignPage({
   };
 
   /* Shared: start scanning */
-  const startScanning = () => {
+  const startScanning = (contactsData?: Contact[]) => {
     setIsApproved(true); // unlock step 3
     setIsScanning(true);
     setScanComplete(false);
     setDisplayedContacts([]);
+    
+    // Use contacts from API - should always be available at this point
+    const contactsToUse = contactsData || contactsFromAPI;
+    console.log('startScanning - contacts received:', contactsData);
+    console.log('startScanning - contactsToUse:', contactsToUse);
+    const scanTotal = Math.min(totalToScan, contactsToUse.length);
+    console.log('startScanning - scanTotal:', scanTotal);
+    
+    // Safety check: If no contacts from API, show error
+    // TODO: rahul will handle empty contacts case properly
+    // if (contactsToUse.length === 0) {
+    //   console.error('No contacts available from API');
+    //   setIsScanning(false);
+    //   alert('No contacts found. Please try again.');
+    //   return;
+    // }
+    
     let i = 0;
     const intv = setInterval(() => {
       // when we push a contact, mark it as not fetched yet; then mark fetched after 3s
-      const contactToAdd = contactsPool[i];
+      const contactToAdd = contactsToUse[i];
       if (contactToAdd) {
         const contactWithState: Contact = { ...contactToAdd, fetched: false };
         setDisplayedContacts((prev) => [...prev, contactWithState]);
@@ -439,7 +448,7 @@ export default function CreateCampaignPage({
         setTimeout(() => {
           setDisplayedContacts((prev) => {
             const index = prev.findIndex(
-              (p) => p.mail === contactWithState.mail && !p.fetched
+              (p) => p.email === contactWithState.email && !p.fetched
             );
             if (index === -1) return prev; // already updated or removed
             const next = [...prev];
@@ -449,7 +458,7 @@ export default function CreateCampaignPage({
         }, 3000);
       }
       i += 1;
-      if (i >= totalToScan) {
+      if (i >= scanTotal) {
         clearInterval(intv);
         setTimeout(() => {
           setIsScanning(false);
@@ -489,13 +498,43 @@ export default function CreateCampaignPage({
   };
 
   /* Approve flow: show approving animation then scan */
-  const handleApprove = () => {
+  const handleApprove = async () => {
     setShowWrongInput(false);
     setIsApproving(true);
-    setTimeout(() => {
+    
+    try {
+      // Call approve API
+      const response = await fetch('/api/approve', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          previewLink: appUrl,
+          appid: appData?.appid || appData?.bundleId,
+          orgID: orgData?.orgID,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch contacts');
+      }
+
+      const contacts = await response.json();
+      setContactsFromAPI(contacts);
+
+      setTimeout(() => {
+        setIsApproving(false);
+        startScanning(contacts);
+      }, 900);
+    } catch (error) {
+      console.error('Error fetching contacts:', error);
       setIsApproving(false);
-      startScanning();
-    }, 900);
+      alert('Failed to fetch contacts. Using fallback data.');
+      setTimeout(() => {
+        startScanning([]);
+      }, 900);
+    }
   };
 
   /* Wrong flow */
@@ -503,15 +542,43 @@ export default function CreateCampaignPage({
     setShowWrongInput(true); // show input row && hide buttons
   };
 
-  const handleWrongSubmit = () => {
+  const handleWrongSubmit = async () => {
     if (!wrongContactLink.trim()) return;
-    // could store/use wrongContactLink here
+    
     setIsApproving(true);
     setShowWrongInput(false);
-    setTimeout(() => {
+    
+    try {
+      // Call contact-person API
+      const response = await fetch('/api/contact-person', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contactperson: wrongContactLink,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch contacts');
+      }
+
+      const contacts = await response.json();
+      setContactsFromAPI(contacts);
+
+      setTimeout(() => {
+        setIsApproving(false);
+        startScanning(contacts);
+      }, 900);
+    } catch (error) {
+      console.error('Error fetching contacts from LinkedIn:', error);
       setIsApproving(false);
-      startScanning();
-    }, 900);
+      alert('Failed to fetch contacts. Using fallback data.');
+      setTimeout(() => {
+        startScanning([]);
+      }, 900);
+    }
   };
 
   const handleWrongCancel = () => {
@@ -520,22 +587,6 @@ export default function CreateCampaignPage({
   };
 
   /* UI                                                   */
-
-  const appData = {
-    app: {
-      logo: "🍔",
-      name: "Swiggy – Food Delivery",
-      bundleId: "in.swiggy.android",
-      storeLink:
-        "https://play.google.com/store/apps/details?id=in.swiggy.android",
-    },
-    org: {
-      logo: "🏢",
-      name: "Bundl Technologies Pvt Ltd",
-      website: "https://swiggy.com",
-      linkedin: "https://linkedin.com/company/swiggy",
-    },
-  };
 
   return (
     <div className="space-y-8">
@@ -774,18 +825,24 @@ export default function CreateCampaignPage({
                           App Details
                         </h3>
                         <div className="flex flex-col items-center space-y-4">
-                          <span className="text-6xl">{appData.app.logo}</span>
+                          <span className="text-6xl">
+                            {appData?.logo ? (
+                              <img src={appData.logo} alt="App Logo" className="w-20 h-20 rounded-2xl" />
+                            ) : (
+                              "🍔"
+                            )}
+                          </span>
                           <div className="text-center space-y-3">
                             <p className="font-medium text-lg">
-                              {appData.app.name}
+                              {appData?.title || appData?.name || "App Name"}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Bundle ID: {appData.app.bundleId}
+                              Bundle ID: {appData?.bundleId || appData?.appid || "N/A"}
                             </p>
                             <div className="flex items-center justify-center gap-2">
                               <ExternalLink className="w-4 h-4 text-muted-foreground" />
                               <a
-                                href={appData.app.storeLink}
+                                href={appData?.storeLink || appUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
@@ -802,26 +859,32 @@ export default function CreateCampaignPage({
                           Organisation Details
                         </h3>
                         <div className="flex flex-col items-center space-y-4">
-                          <span className="text-6xl">{appData.org.logo}</span>
+                          <span className="text-6xl">
+                            {orgData?.orgLogo ? (
+                              <img src={orgData.orgLogo} alt="Org Logo" className="w-20 h-20 rounded-2xl" />
+                            ) : (
+                              "🏢"
+                            )}
+                          </span>
                           <div className="text-center space-y-3">
                             <p className="font-medium text-lg">
-                              {appData.org.name}
+                              {orgData?.orgName || "Organization Name"}
                             </p>
                             <div className="flex items-center justify-center gap-2">
                               <Globe className="w-4 h-4 text-muted-foreground" />
                               <a
-                                href={appData.org.website}
+                                href={orgData?.orgWebsite || "#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
                               >
-                                {appData.org.website}
+                                {orgData?.orgWebsite || "Website"}
                               </a>
                             </div>
                             <div className="flex items-center justify-center gap-2">
                               <Linkedin className="w-4 h-4 text-blue-600" />
                               <a
-                                href={appData.org.linkedin}
+                                href={orgData?.linkedin || "#"}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
@@ -979,17 +1042,17 @@ export default function CreateCampaignPage({
                     <MinimalTiptap
                       content={emailContent}
                       onChange={(value) => {
-                     
-                        console.log('Editor HTML value:', value);
-                                    
+                        console.log("Editor HTML value:", value);
+
                         const editorHtmlContent = value;
-                        console.log('Stored HTML content:', editorHtmlContent);
-                        
-                   
+                        console.log("Stored HTML content:", editorHtmlContent);
+
                         setEditorHtmlValue(value);
-                        console.log('Editor HTML state variable:', editorHtmlValue);
-                        
-                   
+                        console.log(
+                          "Editor HTML state variable:",
+                          editorHtmlValue
+                        );
+
                         setEmailContent(value);
                       }}
                       className="min-h-[120px]"
@@ -1076,7 +1139,7 @@ I hope this email finds you well. I'm reaching out to explore potential partners
         </div>
       </div>
 
-      {/* Tour Popover */}
+      {/* Tour Popover */}1 
       {!hasSeenTour && (
         <div className="fixed bottom-4 right-4 z-50">
           <TourPopover
