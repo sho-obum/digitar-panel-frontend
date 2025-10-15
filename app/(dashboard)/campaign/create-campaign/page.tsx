@@ -30,8 +30,10 @@ import {
 } from "lucide-react";
 import { FaLinkedin } from "react-icons/fa";
 import { HiOutlineInformationCircle } from "react-icons/hi";
+import { RiGeminiLine } from "react-icons/ri";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { TourPopover } from "@/components/ruixen/tour-popover";
+import { MinimalTiptap } from "@/components/ui/shadcn-io/minimal-tiptap";
 import { CheckCircle, Mail } from "lucide-react";
 
 /* Timeline Component                                   */
@@ -112,7 +114,7 @@ type Contact = {
   phone: string;
   email: string;
   linkedin?: string;
-  fetched?: boolean; // whether LinkedIn was fetched for this contact
+  fetched?: boolean;
 };
 
 function ContactScanner({
@@ -152,9 +154,15 @@ function ContactScanner({
         <table className="w-full text-sm text-gray-500">
           <thead className="text-xs uppercase text-gray-400 transition-all duration-500">
             <tr className="border-b border-gray-200/40">
-              <th className="p-3 text-center w-[28%] border-r border-gray-200/30">Name</th>
-              <th className="p-3 text-center w-[28%] border-r border-gray-200/30">Mail</th>
-              <th className="p-3 text-center w-[22%] border-r border-gray-200/30">Phone</th>
+              <th className="p-3 text-center w-[28%] border-r border-gray-200/30">
+                Name
+              </th>
+              <th className="p-3 text-center w-[28%] border-r border-gray-200/30">
+                Mail
+              </th>
+              <th className="p-3 text-center w-[22%] border-r border-gray-200/30">
+                Phone
+              </th>
               <th className="p-3 text-center w-[22%]">LinkedIn</th>
             </tr>
           </thead>
@@ -167,8 +175,12 @@ function ContactScanner({
                   style={{ animationDelay: `${i * 120}ms` }}
                 >
                   <td className="p-3 border-r border-gray-200/30">{c.name}</td>
-                  <td className="p-3 truncate border-r border-gray-200/30">{c.mail}</td>
-                  <td className="p-3 md:whitespace-nowrap border-r border-gray-200/30">{c.phone}</td>
+                  <td className="p-3 truncate border-r border-gray-200/30">
+                    {c.mail}
+                  </td>
+                  <td className="p-3 md:whitespace-nowrap border-r border-gray-200/30">
+                    {c.phone}
+                  </td>
                   <td className="p-3 truncate text-center">
                     {c.fetched ? (
                       <a
@@ -234,12 +246,12 @@ function ContactScanner({
               100% { opacity: 1; transform: translateY(0); }
             }
             @keyframes glowGreen {
-              0%, 100% { box-shadow: 0 0 12px rgba(74, 222, 128, 0.5); }
-              50% { box-shadow: 0 0 24px rgba(74, 222, 128, 0.9); }
+              0%, 100% { box-shadow: 0 0 12px rgba(0,199,255, 0.5); }
+              50% { box-shadow: 0 0 24px rgba(0,199,255, 0.9); }
             }
             @keyframes glowPurple {
-              0%, 100% { box-shadow: 0 0 12px rgba(168, 85, 247, 0.5); }
-              50% { box-shadow: 0 0 24px rgba(168, 85, 247, 0.9); }
+              0%, 100% { box-shadow: 0 0 12px rgba(0,199,255, 0.5); }
+              50% { box-shadow: 0 0 24px rgba(0,199,255, 0.9); }
             }
             @keyframes glowOrange {
               0%, 100% { box-shadow: 0 0 12px rgba(251, 146, 60, 0.5); }
@@ -258,14 +270,18 @@ function ContactScanner({
 
 /* Page Component                                       */
 
-export default function CreateCampaignPage() {
+export default function CreateCampaignPage({
+  onAIRewrite,
+}: {
+  onAIRewrite?: (content: string) => Promise<string>;
+} = {}) {
   const [appUrl, setAppUrl] = useState("");
   const [isFetchingApp, setIsFetchingApp] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   const [isApproved, setIsApproved] = useState(false);
-  const [isApproving, setIsApproving] = useState(false); 
-  const [isScanning, setIsScanning] = useState(false); 
+  const [isApproving, setIsApproving] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   const [showWrongInput, setShowWrongInput] = useState(false);
   const [wrongContactLink, setWrongContactLink] = useState("");
@@ -277,6 +293,10 @@ export default function CreateCampaignPage() {
 
   const [emailSubject, setEmailSubject] = useState("");
   const [emailContent, setEmailContent] = useState("");
+  const [tempEmailContent, setTempEmailContent] = useState("");
+  
+  // Variable to store and console log HTML content
+  const [editorHtmlValue, setEditorHtmlValue] = useState("");
 
   const [hasSeenTour, setHasSeenTour] = useState(false);
 
@@ -301,7 +321,7 @@ export default function CreateCampaignPage() {
     setTimeout(() => {
       setIsFetchingApp(false);
       setShowDetails(true);
-     
+
       setTimeout(() => {
         const el = document.getElementById("confirm-details");
         if (el && typeof window !== "undefined") {
@@ -436,14 +456,21 @@ export default function CreateCampaignPage() {
           setScanComplete(true);
           // reset complete animation after 3 seconds
           setTimeout(() => setScanComplete(false), 3000);
-          
+
           // Scroll to Step 3 and pulse border for 5 seconds
           setTimeout(() => {
             const step3El = document.getElementById("email-composition");
             if (step3El && typeof window !== "undefined") {
               const rect = step3El.getBoundingClientRect();
-              const target = window.pageYOffset + rect.top - (window.innerHeight / 2) + rect.height / 2;
-              window.scrollTo({ top: Math.max(0, Math.floor(target)), behavior: "smooth" });
+              const target =
+                window.pageYOffset +
+                rect.top -
+                window.innerHeight / 2 +
+                rect.height / 2;
+              window.scrollTo({
+                top: Math.max(0, Math.floor(target)),
+                behavior: "smooth",
+              });
             }
             // Trigger pulse
             setStep3Pulse(true);
@@ -551,7 +578,10 @@ export default function CreateCampaignPage() {
                       side="right"
                       className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
                     >
-                      <p>Enter the app store URL to automatically fetch app details and organization information.</p>
+                      <p>
+                        Enter the app store URL to automatically fetch app
+                        details and organization information.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -597,7 +627,9 @@ export default function CreateCampaignPage() {
                     <CardTitle className="flex items-center gap-2">
                       Confirm Details
                       {isApproved && (
-                        <span className="text-green-600 text-sm">✓ Approved</span>
+                        <span className="text-green-600 text-sm">
+                          ✓ Approved
+                        </span>
                       )}
                     </CardTitle>
                     <CardDescription>
@@ -615,7 +647,11 @@ export default function CreateCampaignPage() {
                         side="right"
                         className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
                       >
-                        <p>Review and approve the fetched app and organization details. Once approved, we'll scan for contact information.</p>
+                        <p>
+                          Review and approve the fetched app and organization
+                          details. Once approved, we'll scan for contact
+                          information.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -698,17 +734,19 @@ export default function CreateCampaignPage() {
                   </div>
                 </div>
               )}
-              
 
               {/* B) approving animation (center) */}
-              {getCurrentStep() >= 2 && showDetails && isApproving && !isScanning && (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <LottieLoader size={120} />
-                  <p className="text-sm text-muted-foreground">
-                    Finalizing approval…
-                  </p>
-                </div>
-              )}
+              {getCurrentStep() >= 2 &&
+                showDetails &&
+                isApproving &&
+                !isScanning && (
+                  <div className="flex flex-col items-center justify-center py-10 gap-3">
+                    <LottieLoader size={120} />
+                    <p className="text-sm text-muted-foreground">
+                      Finalizing approval…
+                    </p>
+                  </div>
+                )}
 
               {/* C) scanning table (replaces comparison, persists) */}
               {getCurrentStep() >= 2 && showDetails && isApproved && (
@@ -722,127 +760,134 @@ export default function CreateCampaignPage() {
               )}
 
               {/* D) comparison + actions (default) */}
-              {getCurrentStep() >= 2 && showDetails && !isApproved && !isApproving && !isScanning && (
-                <div className="space-y-6">
-                  <div className="relative grid grid-cols-2 gap-8">
-                    <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border/50 transform -translate-x-1/2" />
-                    {/* App */}
-                    <div className="space-y-4 pr-4">
-                      <h3 className="font-semibold text-lg text-center">
-                        App Details
-                      </h3>
-                      <div className="flex flex-col items-center space-y-4">
-                        <span className="text-6xl">{appData.app.logo}</span>
-                        <div className="text-center space-y-3">
-                          <p className="font-medium text-lg">
-                            {appData.app.name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Bundle ID: {appData.app.bundleId}
-                          </p>
-                          <div className="flex items-center justify-center gap-2">
-                            <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                            <a
-                              href={appData.app.storeLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                            >
-                              View in Store
-                            </a>
+              {getCurrentStep() >= 2 &&
+                showDetails &&
+                !isApproved &&
+                !isApproving &&
+                !isScanning && (
+                  <div className="space-y-6">
+                    <div className="relative grid grid-cols-2 gap-8">
+                      <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border/50 transform -translate-x-1/2" />
+                      {/* App */}
+                      <div className="space-y-4 pr-4">
+                        <h3 className="font-semibold text-lg text-center">
+                          App Details
+                        </h3>
+                        <div className="flex flex-col items-center space-y-4">
+                          <span className="text-6xl">{appData.app.logo}</span>
+                          <div className="text-center space-y-3">
+                            <p className="font-medium text-lg">
+                              {appData.app.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Bundle ID: {appData.app.bundleId}
+                            </p>
+                            <div className="flex items-center justify-center gap-2">
+                              <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                              <a
+                                href={appData.app.storeLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                View in Store
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Org */}
+                      <div className="space-y-4 pl-4">
+                        <h3 className="font-semibold text-lg text-center">
+                          Organisation Details
+                        </h3>
+                        <div className="flex flex-col items-center space-y-4">
+                          <span className="text-6xl">{appData.org.logo}</span>
+                          <div className="text-center space-y-3">
+                            <p className="font-medium text-lg">
+                              {appData.org.name}
+                            </p>
+                            <div className="flex items-center justify-center gap-2">
+                              <Globe className="w-4 h-4 text-muted-foreground" />
+                              <a
+                                href={appData.org.website}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                {appData.org.website}
+                              </a>
+                            </div>
+                            <div className="flex items-center justify-center gap-2">
+                              <Linkedin className="w-4 h-4 text-blue-600" />
+                              <a
+                                href={appData.org.linkedin}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                              >
+                                Company Profile
+                              </a>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                    {/* Org */}
-                    <div className="space-y-4 pl-4">
-                      <h3 className="font-semibold text-lg text-center">
-                        Organisation Details
-                      </h3>
-                      <div className="flex flex-col items-center space-y-4">
-                        <span className="text-6xl">{appData.org.logo}</span>
-                        <div className="text-center space-y-3">
-                          <p className="font-medium text-lg">
-                            {appData.org.name}
-                          </p>
-                          <div className="flex items-center justify-center gap-2">
-                            <Globe className="w-4 h-4 text-muted-foreground" />
-                            <a
-                              href={appData.org.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+
+                    {/* Wrong entry row (appears above buttons) */}
+                    {showWrongInput && (
+                      <>
+                        <Separator />
+                        <div className="p-4 border rounded-lg bg-muted/50">
+                          <Label htmlFor="wrongContact">
+                            Enter correct contact link
+                          </Label>
+                          <div className="flex gap-3 mt-2">
+                            <Input
+                              id="wrongContact"
+                              placeholder="Enter approachable person's contact link"
+                              value={wrongContactLink}
+                              onChange={(e) =>
+                                setWrongContactLink(e.target.value)
+                              }
+                            />
+                            <Button onClick={handleWrongSubmit}>OK</Button>
+                            <Button
+                              variant="outline"
+                              onClick={handleWrongCancel}
                             >
-                              {appData.org.website}
-                            </a>
-                          </div>
-                          <div className="flex items-center justify-center gap-2">
-                            <Linkedin className="w-4 h-4 text-blue-600" />
-                            <a
-                              href={appData.org.linkedin}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
-                            >
-                              Company Profile
-                            </a>
+                              Cancel
+                            </Button>
                           </div>
                         </div>
+                      </>
+                    )}
+
+                    <Separator />
+
+                    {/* Action Buttons */}
+                    {!showWrongInput && (
+                      <div className="flex justify-center gap-3">
+                        <Button
+                          id="approve-btn"
+                          onClick={handleApprove}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={handleWrong}
+                          className="text-white"
+                        >
+                          <CircleAlert className="w-4 h-4 mr-2" />
+                          Wrong
+                        </Button>
                       </div>
-                    </div>
+                    )}
                   </div>
-
-                  {/* Wrong entry row (appears above buttons) */}
-                  {showWrongInput && (
-                    <>
-                      <Separator />
-                      <div className="p-4 border rounded-lg bg-muted/50">
-                        <Label htmlFor="wrongContact">
-                          Enter correct contact link
-                        </Label>
-                        <div className="flex gap-3 mt-2">
-                          <Input
-                            id="wrongContact"
-                            placeholder="Enter approachable person's contact link"
-                            value={wrongContactLink}
-                            onChange={(e) =>
-                              setWrongContactLink(e.target.value)
-                            }
-                          />
-                          <Button onClick={handleWrongSubmit}>OK</Button>
-                          <Button variant="outline" onClick={handleWrongCancel}>
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-
-                  <Separator />
-
-                  {/* Action Buttons */}
-                  {!showWrongInput && (
-                    <div className="flex justify-center gap-3">
-                      <Button
-                        id="approve-btn"
-                        onClick={handleApprove}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <Check className="w-4 h-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={handleWrong}
-                        className="text-white"
-                      >
-                        <CircleAlert className="w-4 h-4 mr-2" />
-                        Wrong
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
             </CardContent>
           </Card>
         </div>
@@ -859,7 +904,6 @@ export default function CreateCampaignPage() {
                 : "shadow-[0_0_12px_rgba(74,222,128,0.4)]"
             }`}
           >
-
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -875,7 +919,10 @@ export default function CreateCampaignPage() {
                       side="left"
                       className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
                     >
-                      <p>Compose and customize your outreach email. Use the AI suggestions to improve your message before sending.</p>
+                      <p>
+                        Compose and customize your outreach email. Use the AI
+                        suggestions to improve your message before sending.
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -923,26 +970,92 @@ export default function CreateCampaignPage() {
                       onChange={(e) => setEmailSubject(e.target.value)}
                       className="mt-2"
                     />
-
                   </div>
 
                   <div className="flex-1 flex flex-col min-h-0">
                     <Label htmlFor="content" className="mb-2">
                       Email Content
                     </Label>
-                    <textarea
-                      id="content"
-                      className="w-full flex-1 p-3 border rounded-md resize-none min-h-[120px]"
+                    <MinimalTiptap
+                      content={emailContent}
+                      onChange={(value) => {
+                     
+                        console.log('Editor HTML value:', value);
+                                    
+                        const editorHtmlContent = value;
+                        console.log('Stored HTML content:', editorHtmlContent);
+                        
+                   
+                        setEditorHtmlValue(value);
+                        console.log('Editor HTML state variable:', editorHtmlValue);
+                        
+                   
+                        setEmailContent(value);
+                      }}
+                      className="min-h-[120px]"
                       placeholder={`Dear Swiggy Team,
 
 I hope this email finds you well. I'm reaching out to explore potential partnership opportunities between our organizations...`}
-                      value={emailContent}
-                      onChange={(e) => setEmailContent(e.target.value)}
                     />
                   </div>
 
+                  {/* AI Rewrite and Revert Buttons */}
+                  <div className="flex justify-end gap-2 mt-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        if (onAIRewrite) {
+                          // Store current content as temp before AI rewrite
+                          setTempEmailContent(emailContent);
+                          try {
+                            const rewrittenContent = await onAIRewrite(
+                              emailContent
+                            );
+                            setEmailContent(rewrittenContent);
+                          } catch (error) {
+                            console.error("AI rewrite failed:", error);
+                            // Revert on error
+                            setTempEmailContent("");
+                          }
+                        } else {
+                          // Store current content as temp
+                          setTempEmailContent(emailContent);
+                          console.log(
+                            "AI rewrite clicked - no handler provided"
+                          );
+                        }
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <RiGeminiLine className="w-4 h-4" />
+                      Rewrite with AI
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Revert to temp content
+                        if (tempEmailContent) {
+                          setEmailContent(tempEmailContent);
+                          setTempEmailContent("");
+                        }
+                      }}
+                      disabled={!tempEmailContent}
+                    >
+                      Revert
+                    </Button>
+                    <Button
+                      className="w-auto"
+                      disabled={!emailSubject.trim() || !emailContent.trim()}
+                      size="sm"
+                    >
+                      Save
+                    </Button>
+                  </div>
+
                   {/* AI Suggestions */}
-                  <div>
+                  {/* <div>
                     <Label className="text-sm font-medium">AI Suggestions</Label>
                     <div className="mt-2 p-3 bg-muted/50 rounded-lg">
                       <div className="space-y-2 text-sm">
@@ -955,14 +1068,7 @@ I hope this email finds you well. I'm reaching out to explore potential partners
                         </ul>
                       </div>
                     </div>
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    disabled={!emailSubject.trim() || !emailContent.trim()}
-                  >
-                    Send Email
-                  </Button>
+                  </div> */}
                 </>
               )}
             </CardContent>
@@ -978,12 +1084,14 @@ I hope this email finds you well. I'm reaching out to explore potential partners
               {
                 icon: Globe,
                 title: "Step 1: App Details",
-                description: "Enter the app store URL to fetch details automatically.",
+                description:
+                  "Enter the app store URL to fetch details automatically.",
               },
               {
                 icon: CheckCircle,
                 title: "Step 2: Confirm Details",
-                description: "Review and approve the fetched information, then scan for contacts.",
+                description:
+                  "Review and approve the fetched information, then scan for contacts.",
               },
               {
                 icon: Mail,

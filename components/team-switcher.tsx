@@ -24,6 +24,7 @@ export function TeamSwitcher({
   const activeTeam = teams[0] // Just use the first team as static display
   const { state } = useSidebar() // Get sidebar state to check if collapsed
   const { theme, resolvedTheme } = useTheme()
+  const [logoSrc, setLogoSrc] = React.useState<string>('')
 
   if (!activeTeam) {
     return null
@@ -38,6 +39,11 @@ export function TeamSwitcher({
     return '' // fallback for non-string logos
   }
 
+  // Update logo source when theme changes
+  React.useEffect(() => {
+    setLogoSrc(getLogoSrc())
+  }, [resolvedTheme, activeTeam.logo, activeTeam.logoLight, activeTeam.logoDark])
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -45,7 +51,7 @@ export function TeamSwitcher({
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
             {typeof activeTeam.logo === 'string' ? (
               <img 
-                src={getLogoSrc()} 
+                src={logoSrc} 
                 alt={`${activeTeam.name} logo`}
                 className="size-8 object-contain group-data-[collapsible=icon]:size-8"
               />

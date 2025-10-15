@@ -134,9 +134,9 @@ const data = {
   ],
   projects: [
     {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
+      name: "Settings",
+      url: "/settings",
+      icon: Settings2,
     },
     {
       name: "Sales & Marketing",
