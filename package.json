@@ -46,8 +46,10 @@
     "@tiptap/pm": "^3.6.7",
     "@tiptap/react": "^3.6.7",
     "@tiptap/starter-kit": "^3.6.7",
+    "@types/react-select": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.545.0",
     "motion": "^12.23.24",
@@ -57,6 +59,7 @@
     "react-day-picker": "^9.11.1",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
+    "react-select": "^5.10.2",
     "recharts": "^2.15.4",
     "tailwind-merge": "^3.3.1"
   },

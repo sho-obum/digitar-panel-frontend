@@ -67,13 +67,13 @@ const data = {
       ],
     },
     {
-      title: "Heading 2",
+      title: "Logs",
       url: "#",
       icon: Bot,
       items: [
         {
-          title: "Sub Item 1",
-          url: "#",
+          title: "Email Logs",
+          url: "/logs/email-logs",
         },
         {
           title: "Sub Item 2" ,
