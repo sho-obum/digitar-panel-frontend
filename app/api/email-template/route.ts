@@ -4,7 +4,7 @@ export async function GET(request: NextRequest) {
   try {
     
     const subject = "Partnership Opportunity with Your Organization";
-    const body = `Dear Team,
+    const body = `Dear Team,<br><br>
 
 I hope this email finds you well. I'm reaching out to explore potential partnership opportunities between our organizations.
 
@@ -12,10 +12,10 @@ We've been impressed by your innovative approach and would love to discuss how w
 
 Would you be available for a brief call next week to discuss this further?
 
-Looking forward to hearing from you.
+Looking forward to hearing from you.<br><br>
 
-Best regards,
-Your Name
+Best regards,<br>
+Your Name<br>
 Company Name`;
 
     // Encode to base64

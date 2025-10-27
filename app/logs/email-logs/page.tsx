@@ -451,7 +451,7 @@ export default function EmailLogsPage() {
       <AppSidebar />
       <SidebarInset>
         <Header breadcrumbs={breadcrumbs} />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-4 overflow-auto">
           <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-semibold mb-1">Email Logs</h1>

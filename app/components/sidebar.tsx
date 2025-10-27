@@ -66,6 +66,26 @@ const data = {
         },
       ],
     },
+     {
+      title: "Templates",
+      url: "#",
+      icon: BookOpen,
+      items: [
+        {
+          title: "Email Templates",
+          url: "/template/email-template",
+        },
+        {
+          title: "Sub Item 2",
+          url: "#",
+        },
+        {
+          title: "Sub Item 3",
+          url: "#",
+        },
+      
+      ],
+    },
     {
       title: "Logs",
       url: "#",
@@ -85,29 +105,7 @@ const data = {
         },
       ],
     },
-    {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
-    },
+   
     {
       title: "Settings",
       url: "#",
@@ -138,16 +136,7 @@ const data = {
       url: "/settings",
       icon: Settings2,
     },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
-    },
+   
   ],
 }
 
