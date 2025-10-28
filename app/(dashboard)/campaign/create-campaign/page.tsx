@@ -13,6 +13,13 @@ import {
 } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -33,7 +40,7 @@ import { HiOutlineInformationCircle } from "react-icons/hi";
 import { RiGeminiLine } from "react-icons/ri";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { TourPopover } from "@/components/ruixen/tour-popover";
-import { MinimalTiptap } from "@/components/ui/shadcn-io/minimal-tiptap";
+import { EmailComposer } from "@/components/email-composer";
 import { CheckCircle, Mail } from "lucide-react";
 
 /* Timeline Component                                   */
@@ -134,8 +141,6 @@ function ContactScanner({
 
   return (
     <div className="space-y-6">
-      
-
       {/* header with loader + text */}
       <div className="flex items-center gap-3">
         <div className="flex-shrink-0">
@@ -173,7 +178,9 @@ function ContactScanner({
                   className="animate-[scanIn_0.4s_ease-out_1] transition-all duration-500"
                   style={{ animationDelay: `${i * 120}ms` }}
                 >
-                  <td className="p-3 border-r border-gray-200/30">{c.person}</td>
+                  <td className="p-3 border-r border-gray-200/30">
+                    {c.person}
+                  </td>
                   <td className="p-3 truncate border-r border-gray-200/30">
                     {c.email}
                   </td>
@@ -294,6 +301,10 @@ export default function CreateCampaignPage({
   const [emailContent, setEmailContent] = useState("");
   const [tempEmailContent, setTempEmailContent] = useState("");
 
+  // Campaign dropdowns
+  const [campaignCategory, setCampaignCategory] = useState("finance");
+  const [templateSelection, setTemplateSelection] = useState("initial");
+
   // Variable to store and console log HTML content
   const [editorHtmlValue, setEditorHtmlValue] = useState("");
 
@@ -309,19 +320,23 @@ export default function CreateCampaignPage({
     const loadEmailTemplate = async () => {
       if (isApproved && !emailSubject && !emailContent) {
         try {
-          const response = await fetch('/api/email-template');
+          const response = await fetch("/api/email-template");
           if (response.ok) {
             const data = await response.json();
-            
+
             // Decode base64
-            const decodedSubject = Buffer.from(data.Subject, 'base64').toString('utf-8');
-            const decodedBody = Buffer.from(data.body, 'base64').toString('utf-8');
-            
+            const decodedSubject = Buffer.from(data.Subject, "base64").toString(
+              "utf-8"
+            );
+            const decodedBody = Buffer.from(data.body, "base64").toString(
+              "utf-8"
+            );
+
             setEmailSubject(decodedSubject);
             setEmailContent(decodedBody);
           }
         } catch (error) {
-          console.error('Error loading email template:', error);
+          console.error("Error loading email template:", error);
         }
       }
     };
@@ -347,19 +362,19 @@ export default function CreateCampaignPage({
   const handleFetch = async () => {
     if (!appUrl.trim()) return;
     setIsFetchingApp(true);
-    
+
     try {
       // Call preview-link API
-      const response = await fetch('/api/preview-link', {
-        method: 'POST',
+      const response = await fetch("/api/preview-link", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ previewLink: appUrl }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch app details');
+        throw new Error("Failed to fetch app details");
       }
 
       const data = await response.json();
@@ -389,9 +404,9 @@ export default function CreateCampaignPage({
         if (btn) setTimeout(() => btn.focus(), 600);
       }, 120);
     } catch (error) {
-      console.error('Error fetching app details:', error);
+      console.error("Error fetching app details:", error);
       setIsFetchingApp(false);
-      alert('Failed to fetch app details. Please try again.');
+      alert("Failed to fetch app details. Please try again.");
     }
   };
 
@@ -420,14 +435,14 @@ export default function CreateCampaignPage({
     setIsScanning(true);
     setScanComplete(false);
     setDisplayedContacts([]);
-    
+
     // Use contacts from API - should always be available at this point
     const contactsToUse = contactsData || contactsFromAPI;
-    console.log('startScanning - contacts received:', contactsData);
-    console.log('startScanning - contactsToUse:', contactsToUse);
+    console.log("startScanning - contacts received:", contactsData);
+    console.log("startScanning - contactsToUse:", contactsToUse);
     const scanTotal = Math.min(totalToScan, contactsToUse.length);
-    console.log('startScanning - scanTotal:', scanTotal);
-    
+    console.log("startScanning - scanTotal:", scanTotal);
+
     // Safety check: If no contacts from API, show error
     // TODO: rahul will handle empty contacts case properly
     // if (contactsToUse.length === 0) {
@@ -436,7 +451,7 @@ export default function CreateCampaignPage({
     //   alert('No contacts found. Please try again.');
     //   return;
     // }
-    
+
     let i = 0;
     const intv = setInterval(() => {
       // when we push a contact, mark it as not fetched yet; then mark fetched after 3s
@@ -501,13 +516,13 @@ export default function CreateCampaignPage({
   const handleApprove = async () => {
     setShowWrongInput(false);
     setIsApproving(true);
-    
+
     try {
       // Call approve API
-      const response = await fetch('/api/approve', {
-        method: 'POST',
+      const response = await fetch("/api/approve", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           previewLink: appUrl,
@@ -517,7 +532,7 @@ export default function CreateCampaignPage({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch contacts');
+        throw new Error("Failed to fetch contacts");
       }
 
       const contacts = await response.json();
@@ -528,9 +543,9 @@ export default function CreateCampaignPage({
         startScanning(contacts);
       }, 900);
     } catch (error) {
-      console.error('Error fetching contacts:', error);
+      console.error("Error fetching contacts:", error);
       setIsApproving(false);
-      alert('Failed to fetch contacts. Using fallback data.');
+      alert("Failed to fetch contacts. Using fallback data.");
       setTimeout(() => {
         startScanning([]);
       }, 900);
@@ -544,16 +559,16 @@ export default function CreateCampaignPage({
 
   const handleWrongSubmit = async () => {
     if (!wrongContactLink.trim()) return;
-    
+
     setIsApproving(true);
     setShowWrongInput(false);
-    
+
     try {
       // Call contact-person API
-      const response = await fetch('/api/contact-person', {
-        method: 'POST',
+      const response = await fetch("/api/contact-person", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           contactperson: wrongContactLink,
@@ -561,7 +576,7 @@ export default function CreateCampaignPage({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch contacts');
+        throw new Error("Failed to fetch contacts");
       }
 
       const contacts = await response.json();
@@ -572,9 +587,9 @@ export default function CreateCampaignPage({
         startScanning(contacts);
       }, 900);
     } catch (error) {
-      console.error('Error fetching contacts from LinkedIn:', error);
+      console.error("Error fetching contacts from LinkedIn:", error);
       setIsApproving(false);
-      alert('Failed to fetch contacts. Using fallback data.');
+      alert("Failed to fetch contacts. Using fallback data.");
       setTimeout(() => {
         startScanning([]);
       }, 900);
@@ -827,7 +842,11 @@ export default function CreateCampaignPage({
                         <div className="flex flex-col items-center space-y-4">
                           <span className="text-6xl">
                             {appData?.logo ? (
-                              <img src={appData.logo} alt="App Logo" className="w-20 h-20 rounded-2xl" />
+                              <img
+                                src={appData.logo}
+                                alt="App Logo"
+                                className="w-20 h-20 rounded-2xl"
+                              />
                             ) : (
                               "🍔"
                             )}
@@ -837,7 +856,8 @@ export default function CreateCampaignPage({
                               {appData?.title || appData?.name || "App Name"}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Bundle ID: {appData?.bundleId || appData?.appid || "N/A"}
+                              Bundle ID:{" "}
+                              {appData?.bundleId || appData?.appid || "N/A"}
                             </p>
                             <div className="flex items-center justify-center gap-2">
                               <ExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -861,7 +881,11 @@ export default function CreateCampaignPage({
                         <div className="flex flex-col items-center space-y-4">
                           <span className="text-6xl">
                             {orgData?.orgLogo ? (
-                              <img src={orgData.orgLogo} alt="Org Logo" className="w-20 h-20 rounded-2xl" />
+                              <img
+                                src={orgData.orgLogo}
+                                alt="Org Logo"
+                                className="w-20 h-20 rounded-2xl"
+                              />
                             ) : (
                               "🏢"
                             )}
@@ -968,27 +992,30 @@ export default function CreateCampaignPage({
             }`}
           >
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="relative">
+                <div className="absolute top-0 right-0">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <HiOutlineInformationCircle className="w-5 h-5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent
+                        side="left"
+                        className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
+                      >
+                        <p>
+                          Compose and customize your outreach email. Use the AI
+                          suggestions to improve your message before sending.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+
+                <div className="pr-8">
                   <CardTitle>Email Composition</CardTitle>
                   <CardDescription>Compose your outreach email</CardDescription>
                 </div>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <HiOutlineInformationCircle className="w-5 h-5 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="left"
-                      className="w-64 bg-white text-black shadow-lg border border-gray-200 [&>div]:before:hidden [&>div]:after:hidden"
-                    >
-                      <p>
-                        Compose and customize your outreach email. Use the AI
-                        suggestions to improve your message before sending.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
               </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col space-y-4">
@@ -1024,6 +1051,46 @@ export default function CreateCampaignPage({
                 </div>
               ) : (
                 <>
+                  {/* Dropdowns */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="category">Campaign Category</Label>
+                      <Select
+                        value={campaignCategory}
+                        onValueChange={setCampaignCategory}
+                      >
+                        <SelectTrigger id="category" className="mt-2">
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="finance">Finance</SelectItem>
+                          <SelectItem value="tech">Tech</SelectItem>
+                          <SelectItem value="healthcare">Healthcare</SelectItem>
+                          <SelectItem value="retail">Retail</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="template">Template Selection</Label>
+                      <Select
+                        value={templateSelection}
+                        onValueChange={setTemplateSelection}
+                      >
+                        <SelectTrigger id="template" className="mt-2">
+                          <SelectValue placeholder="Select template" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="initial">Initial ABC</SelectItem>
+                          <SelectItem value="followup">Initial DEF</SelectItem>
+                          <SelectItem value="reminder">Initial GHI</SelectItem>
+                          <SelectItem value="custom">Initial JKL</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <hr />
                   <div>
                     <Label htmlFor="subject">Subject</Label>
                     <Input
@@ -1039,7 +1106,7 @@ export default function CreateCampaignPage({
                     <Label htmlFor="content" className="mb-2">
                       Email Content
                     </Label>
-                    <MinimalTiptap
+                    <EmailComposer
                       content={emailContent}
                       onChange={(value) => {
                         console.log("Editor HTML value:", value);
@@ -1055,19 +1122,7 @@ export default function CreateCampaignPage({
 
                         setEmailContent(value);
                       }}
-                      className="min-h-[120px]"
-                      placeholder={`Dear Swiggy Team,
-
-I hope this email finds you well. I'm reaching out to explore potential partnership opportunities between our organizations...`}
-                    />
-                  </div>
-
-                  {/* AI Rewrite and Revert Buttons */}
-                  <div className="flex justify-end gap-2 mt-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={async () => {
+                      onRewrite={async () => {
                         if (onAIRewrite) {
                           // Store current content as temp before AI rewrite
                           setTempEmailContent(emailContent);
@@ -1089,11 +1144,16 @@ I hope this email finds you well. I'm reaching out to explore potential partners
                           );
                         }
                       }}
-                      className="flex items-center gap-2"
-                    >
-                      <RiGeminiLine className="w-4 h-4" />
-                      Rewrite with AI
-                    </Button>
+                      placeholder={`Dear Swiggy Team,
+
+I hope this email finds you well. I'm reaching out to explore potential partnership opportunities between our organizations...`}
+                      minHeight="120px"
+                      className="flex-1"
+                    />
+                  </div>
+
+                  {/* Revert and Save Buttons */}
+                  <div className="flex justify-end gap-2 mt-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -1139,7 +1199,7 @@ I hope this email finds you well. I'm reaching out to explore potential partners
         </div>
       </div>
 
-      {/* Tour Popover */}1 
+      {/* Tour Popover */}
       {!hasSeenTour && (
         <div className="fixed bottom-4 right-4 z-50">
           <TourPopover

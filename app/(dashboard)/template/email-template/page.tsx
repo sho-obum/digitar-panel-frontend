@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { MinimalTiptap } from "@/components/ui/shadcn-io/minimal-tiptap";
+import { EmailComposer } from "@/components/email-composer";
 import {
   Eye,
   X,
@@ -718,13 +719,17 @@ export default function EmailTemplatePage() {
                       <Label className="text-sm font-medium">
                         Template HTML Body
                       </Label>
-                      <MinimalTiptap
+                      <EmailComposer
                         content={formData.htmlBody}
                         onChange={(content: string) =>
                           setFormData({ ...formData, htmlBody: content })
                         }
+                        onRewrite={() => {
+                          console.log("AI rewrite clicked for template");
+                          // You'll implement this later
+                        }}
                         placeholder="Start typing your email template..."
-                        className="min-h-[300px]"
+                        minHeight="300px"
                       />
                     </div>
                   </div>
@@ -736,14 +741,7 @@ export default function EmailTemplatePage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-between items-center pt-2 border-t mt-2">
-                  <Button
-                    variant="outline"
-                    className="text-foreground border-border"
-                  >
-                    <RiGeminiLine className="w-4 h-4 mr-2" />
-                    Rewrite with AI
-                  </Button>
+                <div className="flex justify-end items-center pt-2 border-t mt-2">
                   <div className="flex gap-3">
                     <Button
                       variant="ghost"
@@ -940,13 +938,17 @@ export default function EmailTemplatePage() {
                       <Label className="text-sm font-medium">
                         Template HTML Body
                       </Label>
-                      <MinimalTiptap
+                      <EmailComposer
                         content={formData.htmlBody}
                         onChange={(content: string) =>
                           setFormData({ ...formData, htmlBody: content })
                         }
+                        onRewrite={() => {
+                          console.log("AI rewrite clicked for replica");
+                          // You'll implement this later
+                        }}
                         placeholder="Start typing your email template..."
-                        className="min-h-[300px]"
+                        minHeight="300px"
                       />
                     </div>
                   </div>
@@ -958,14 +960,7 @@ export default function EmailTemplatePage() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex justify-between items-center pt-2 border-t mt-2">
-                  <Button
-                    variant="outline"
-                    className="text-foreground border-border"
-                  >
-                    <RiGeminiLine className="w-4 h-4 mr-2" />
-                    Rewrite with AI
-                  </Button>
+                <div className="flex justify-end items-center pt-2 border-t mt-2">
                   <div className="flex gap-3">
                     <Button
                       variant="ghost"

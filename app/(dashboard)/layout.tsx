@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import AppSidebar from "../components/sidebar";
 import Header from "../components/header";
+import { LoadingProvider } from "@/app/providers/loading-provider";
 
 export default function DashboardLayout({
   children,
@@ -13,14 +14,16 @@ export default function DashboardLayout({
   ];
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <Header breadcrumbs={breadcrumbs} />
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-          {children}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <LoadingProvider>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset>
+          <Header breadcrumbs={breadcrumbs} />
+          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+            {children}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </LoadingProvider>
   );
 }
