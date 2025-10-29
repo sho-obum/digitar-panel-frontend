@@ -112,8 +112,8 @@ const data = {
       icon: Settings2,
       items: [
         {
-          title: "General",
-          url: "#",
+          title: "Email Configuration",
+          url: "/settings/email-configuration",
         },
         {
           title: "Team",

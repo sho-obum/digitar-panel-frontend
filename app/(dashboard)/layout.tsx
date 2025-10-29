@@ -14,16 +14,16 @@ export default function DashboardLayout({
   ];
 
   return (
-    <LoadingProvider>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <Header breadcrumbs={breadcrumbs} />
-          <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <Header breadcrumbs={breadcrumbs} />
+        <LoadingProvider>
+          <div className="relative flex flex-1 flex-col gap-4 p-4 pt-0">
             {children}
           </div>
-        </SidebarInset>
-      </SidebarProvider>
-    </LoadingProvider>
+        </LoadingProvider>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
