@@ -62,7 +62,7 @@ const data = {
         },
         {
           title: "All Campaigns",
-          url: "#",
+          url: "/campaign/all-campaigns",
         },
       ],
     },
