@@ -1,6 +1,7 @@
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import type { Metadata } from "next";
+import Providers from "./providers/session-providers";
 
 export const metadata: Metadata = {
   title: "SaaS Frontend",
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <Providers>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -23,6 +25,7 @@ export default function RootLayout({
         >
           {children}
         </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );
