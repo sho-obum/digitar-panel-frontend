@@ -3,6 +3,8 @@
 import { Bell, Moon, Search, Sun, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { signOut } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,11 +35,12 @@ interface HeaderProps {
 export default function Header({ breadcrumbs = [] }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const [notifications, setNotifications] = useState(3) // Example notification count
+  const { data: session } = useSession();
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
   }
-
+  // const { session, status } = useSessionCheck()
   return (
     <header className="sticky top-0 z-50 flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 backdrop-blur-md bg-background/80 border-b border-border/50 supports-[backdrop-filter]:bg-background/60">
       <div className="flex items-center gap-2 px-4">
@@ -99,7 +102,7 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
         {/* Profile Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-9 w-9">
+            <Button variant="ghost" size="icon" className="h-9 w-9 cursor-pointer">
               <User className="h-4 w-4" />
               <span className="sr-only">Profile menu</span>
             </Button>
@@ -107,21 +110,21 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem>
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium">Username</p>
-                <p className="text-xs text-muted-foreground">user@example.com</p>
+                <p className="text-sm font-medium">{ session?.user?.fullname ?? "Guest"}</p>
+                <p className="text-xs text-muted-foreground">{ session?.user?.email ?? "guestuser@example.com"}</p>
               </div>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <span>Profile Settings</span>
+              <span className="cursor-pointer">Profile Settings</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <span>Account</span>
+              <span className="cursor-pointer">Account</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <span>Billing</span>
+              <span className="cursor-pointer">Billing</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
-              <span>Sign out</span>
+              <span className="cursor-pointer" onClick={() => signOut()}>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
