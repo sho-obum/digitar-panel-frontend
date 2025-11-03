@@ -10,6 +10,7 @@ const publicRoutes = [
   "/signup",
   "/forgot-password",
   "/api/auth",
+  "/api/app-detail",
   "/public",
   "/favicon.ico",
   "/_next",
