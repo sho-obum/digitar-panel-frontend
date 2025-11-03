@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-
+import { detectLinkType } from '@/helpers/detectLinkType';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -11,6 +11,21 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    const linkType = detectLinkType(previewLink);
+
+    if (linkType === 'invalid') {
+      return NextResponse.json(
+        { error: 'Invalid URL' },
+        { status: 400 }
+      );
+    }else if(linkType === 'web'){
+      return NextResponse.json(
+        { error: 'Please provide a valid App Store or Play Store link' },
+        { status: 400 }
+      );
+    }else{
+      console.log('Detected link type:', linkType);
+    }
 
     // Mock response data
     const response = {
@@ -19,8 +34,9 @@ export async function POST(request: NextRequest) {
         logo: "https://play-lh.googleusercontent.com/1gkXHjv0bX4y2Yk2b8r3cX9F6fJt5e5Z5z5z5z5z5z5z5z5=s180-rw",
         title: "Swiggy ",
         category: "Food & Drink",
-        bundleId: "in.swiggy.android", // Added for frontend
-        storeLink: previewLink, // Pass back the preview link
+        bundleId: "in.swiggy.android",
+        storeLink: previewLink, 
+        linkType: linkType, // Added link type
       },
       orgData: {
         orgName: "Org of Swiggy",
