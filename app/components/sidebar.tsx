@@ -58,12 +58,8 @@ const data = {
         },
         {
           title: "Manage Campaigns",
-          url: "#",
-        },
-        {
-          title: "All Campaigns",
-          url: "/campaign/all-campaigns",
-        },
+          url: "/campaign/manage-campaigns",
+        }
       ],
     },
      {

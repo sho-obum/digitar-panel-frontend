@@ -1,17 +1,10 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, subMonths, subDays } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/calendar-with-presets";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Card,
   CardContent,
@@ -48,7 +41,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import EditCampaignDialog from "@/components/edit-campaign-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -71,13 +63,11 @@ import {
   UserCheck,
   TrendingUp,
   Users,
-  CalendarDays,
-  Globe,
-  Linkedin,
 } from "lucide-react";
 import { FiEdit2, FiTrash2, FiEye, FiBarChart2 } from "react-icons/fi";
 import { MdOutlineStorefront } from "react-icons/md";
 import { Toggle } from "@/components/ui/toggle";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 
 type Campaign = {
@@ -116,7 +106,7 @@ type CampaignLog = {
   tab: string; // Tab 1, Tab 2, Tab 3, Tab 4
 };
 
-// Mock data 
+// Mock data generator
 const generateMockCampaigns = (): Campaign[] => {
   const companies = [
     { name: "Swiggy", app: "Swiggy - Food Delivery" },
@@ -165,8 +155,7 @@ const generateMockCampaigns = (): Campaign[] => {
       directUrl: `https://play.google.com/store/apps/details?id=com.${company.name.toLowerCase()}.app`,
       addedAt: date,
       sendPermission: Math.random() > 0.3,
-      // Force first 3 campaigns to be Draft for testing
-      status: i < 3 ? "Draft" : statuses[Math.floor(Math.random() * statuses.length)],
+      status: statuses[Math.floor(Math.random() * statuses.length)],
       approachStage: stages[Math.floor(Math.random() * stages.length)],
     };
   });
@@ -287,106 +276,11 @@ export default function AllCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>(
     generateMockCampaigns()
   );
-  
-  // Filter input states (not yet applied)
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedStage, setSelectedStage] = useState<string>("");
-  const [dateRange, setDateRange] = useState(() => {
-    const today = new Date();
-    return {
-      from: subDays(today, 7),
-      to: today,
-      preset: "last7days",
-    };
-  });
-  
-  // Applied filter states (used for actual filtering)
-  const [appliedSearchQuery, setAppliedSearchQuery] = useState("");
-  const [appliedCategory, setAppliedCategory] = useState<string>("");
-  const [appliedStage, setAppliedStage] = useState<string>("");
-  const [appliedDateRange, setAppliedDateRange] = useState(() => {
-    const today = new Date();
-    return {
-      from: subDays(today, 7),
-      to: today,
-      preset: "last7days",
-    };
-  });
-  
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-
-  // Date presets
-  const datePresets = [
-    {
-      id: "today",
-      label: "Today",
-      getValue: () => {
-        const today = new Date();
-        return { from: today, to: today };
-      },
-    },
-    {
-      id: "yesterday",
-      label: "Yesterday",
-      getValue: () => {
-        const yesterday = subDays(new Date(), 1);
-        return { from: yesterday, to: yesterday };
-      },
-    },
-    {
-      id: "last7days",
-      label: "Last 7 days",
-      getValue: () => ({
-        from: subDays(new Date(), 7),
-        to: new Date(),
-      }),
-    },
-    {
-      id: "last30days",
-      label: "Last 30 days",
-      getValue: () => ({
-        from: subDays(new Date(), 30),
-        to: new Date(),
-      }),
-    },
-    {
-      id: "thisMonth",
-      label: "This month",
-      getValue: () => ({
-        from: startOfMonth(new Date()),
-        to: endOfMonth(new Date()),
-      }),
-    },
-    {
-      id: "lastMonth",
-      label: "Last month",
-      getValue: () => {
-        const lastMonth = subMonths(new Date(), 1);
-        return {
-          from: startOfMonth(lastMonth),
-          to: endOfMonth(lastMonth),
-        };
-      },
-    },
-  ];
-
-  // Helper function to format date range text
-  const getDateRangeText = () => {
-    if (!dateRange.from) return "Select date range";
-    if (dateRange.preset && dateRange.preset !== "custom") {
-      const preset = datePresets.find((p) => p.id === dateRange.preset);
-      return preset?.label || "Custom range";
-    }
-    if (dateRange.from && dateRange.to) {
-      return `${format(dateRange.from, "MMM dd")} - ${format(
-        dateRange.to,
-        "MMM dd"
-      )}`;
-    }
-    return format(dateRange.from, "MMM dd, yyyy");
-  };
-
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: null,
     direction: "asc",
@@ -395,19 +289,10 @@ export default function AllCampaignsPage() {
   // Dialog states
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
   const [isKeywordsDialogOpen, setIsKeywordsDialogOpen] = useState(false);
-  const [isOrgDialogOpen, setIsOrgDialogOpen] = useState(false);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [selectedLogTab, setSelectedLogTab] = useState("tab1");
   const [campaignLogs, setCampaignLogs] = useState<CampaignLog[]>(generateMockCampaignLogs());
   const [selectedMessage, setSelectedMessage] = useState<string | null>(null);
-  
-  // Log filter states
-  const [logSearchQuery, setLogSearchQuery] = useState("");
-  const [logSelectedCountry, setLogSelectedCountry] = useState<string>("");
-  const [logSelectedEmailStatus, setLogSelectedEmailStatus] = useState<string>("");
-  const [appliedLogSearchQuery, setAppliedLogSearchQuery] = useState("");
-  const [appliedLogSelectedCountry, setAppliedLogSelectedCountry] = useState<string>("");
-  const [appliedLogSelectedEmailStatus, setAppliedLogSelectedEmailStatus] = useState<string>("");
   
   // Keywords dialog states
   const [newKeywords, setNewKeywords] = useState("");
@@ -417,32 +302,18 @@ export default function AllCampaignsPage() {
     "Marketing", "Sales", "Collaboration", "Integration"
   ]);
 
-  // Edit campaign dialog state
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
-
   // Filter and sort campaigns
   const filteredAndSortedCampaigns = useMemo(() => {
     let filtered = campaigns.filter((campaign) => {
       const matchesSearch =
-        campaign.appName.toLowerCase().includes(appliedSearchQuery.toLowerCase()) ||
-        campaign.companyName.toLowerCase().includes(appliedSearchQuery.toLowerCase());
+        campaign.appName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        campaign.companyName.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory =
-        appliedCategory === "all" || !appliedCategory || campaign.category === appliedCategory;
+        selectedCategory === "all" || !selectedCategory || campaign.category === selectedCategory;
       const matchesStage =
-        appliedStage === "all" || !appliedStage || campaign.approachStage === appliedStage;
-      
-      // Filter by date range
-      const campaignDate = new Date(campaign.addedAt);
-      campaignDate.setHours(0, 0, 0, 0);
-      const fromDate = new Date(appliedDateRange.from);
-      fromDate.setHours(0, 0, 0, 0);
-      const toDate = new Date(appliedDateRange.to);
-      toDate.setHours(23, 59, 59, 999);
-      
-      const matchesDateRange = campaignDate >= fromDate && campaignDate <= toDate;
+        selectedStage === "all" || !selectedStage || campaign.approachStage === selectedStage;
 
-      return matchesSearch && matchesCategory && matchesStage && matchesDateRange;
+      return matchesSearch && matchesCategory && matchesStage;
     });
 
     if (sortConfig.key) {
@@ -467,7 +338,7 @@ export default function AllCampaignsPage() {
     }
 
     return filtered;
-  }, [campaigns, appliedSearchQuery, appliedCategory, appliedStage, appliedDateRange, sortConfig]);
+  }, [campaigns, searchQuery, selectedCategory, selectedStage, sortConfig]);
 
   const handleSort = (key: keyof Campaign) => {
     let direction: "asc" | "desc" = "asc";
@@ -506,11 +377,6 @@ export default function AllCampaignsPage() {
     setIsLogsDialogOpen(true);
   };
 
-  const handleViewOrgDetails = (campaign: Campaign) => {
-    setSelectedCampaign(campaign);
-    setIsOrgDialogOpen(true);
-  };
-
   const handleRefetchKeywords = (campaign: Campaign) => {
     setSelectedCampaign(campaign);
     setIsKeywordsDialogOpen(true);
@@ -518,33 +384,6 @@ export default function AllCampaignsPage() {
 
   const handleRemoveKeyword = (keyword: string) => {
     setUsedKeywords(usedKeywords.filter(k => k !== keyword));
-  };
-
-  const handleApplyFilters = () => {
-    setAppliedSearchQuery(searchQuery);
-    setAppliedCategory(selectedCategory);
-    setAppliedStage(selectedStage);
-    setAppliedDateRange(dateRange);
-  };
-
-  const handleResetFilters = () => {
-    // Reset to show ALL data - use a very wide date range
-    const allDataDateRange = {
-      from: new Date(2000, 0, 1), // Jan 1, 2000
-      to: new Date(2099, 11, 31), // Dec 31, 2099
-      preset: "all",
-    };
-    
-    setSearchQuery("");
-    setSelectedCategory("");
-    setSelectedStage("");
-    setDateRange(allDataDateRange);
-    
-    // Also reset applied filters to show all data
-    setAppliedSearchQuery("");
-    setAppliedCategory("");
-    setAppliedStage("");
-    setAppliedDateRange(allDataDateRange);
   };
 
   const handleFetchKeywords = () => {
@@ -560,65 +399,16 @@ export default function AllCampaignsPage() {
     );
   };
 
-  const handleEditCampaign = (campaign: Campaign) => {
-    console.log("Edit campaign clicked:", campaign);
-    setEditingCampaign(campaign);
-    setIsEditDialogOpen(true);
-    console.log("Dialog should open now, isEditDialogOpen:", true);
-  };
-
-  const handleSaveAndActivate = (campaignId: string) => {
-    // Update campaign status to Active
-    setCampaigns(
-      campaigns.map((c) =>
-        c.id === campaignId ? { ...c, status: "Active" } : c
-      )
-    );
-    // TODO: API call to save campaign data and update status
-    console.log("Campaign activated:", campaignId);
-  };
-
-  const handleApplyLogFilters = () => {
-    setAppliedLogSearchQuery(logSearchQuery);
-    setAppliedLogSelectedCountry(logSelectedCountry);
-    setAppliedLogSelectedEmailStatus(logSelectedEmailStatus);
-  };
-
-  const handleResetLogFilters = () => {
-    setLogSearchQuery("");
-    setLogSelectedCountry("");
-    setLogSelectedEmailStatus("");
-    
-    // Also reset applied filters
-    setAppliedLogSearchQuery("");
-    setAppliedLogSelectedCountry("");
-    setAppliedLogSelectedEmailStatus("");
-  };
-
   // Filter logs by selected tab
   const filteredLogs = useMemo(() => {
     return campaignLogs.filter(log => {
-      // Filter by tab
-      const tabMatch = 
-        (selectedLogTab === "tab1" && log.tab === "Tab 1") ||
-        (selectedLogTab === "tab2" && log.tab === "Tab 2") ||
-        (selectedLogTab === "tab3" && log.tab === "Tab 3") ||
-        (selectedLogTab === "tab4" && log.tab === "Tab 4");
-      
-      if (!tabMatch) return false;
-      
-      // Apply log filters
-      const matchesSearch =
-        log.person.toLowerCase().includes(appliedLogSearchQuery.toLowerCase()) ||
-        log.email.toLowerCase().includes(appliedLogSearchQuery.toLowerCase());
-      const matchesCountry =
-        appliedLogSelectedCountry === "all" || !appliedLogSelectedCountry || log.country === appliedLogSelectedCountry;
-      const matchesEmailStatus =
-        appliedLogSelectedEmailStatus === "all" || !appliedLogSelectedEmailStatus || log.emailStatus === appliedLogSelectedEmailStatus;
-
-      return matchesSearch && matchesCountry && matchesEmailStatus;
+      if (selectedLogTab === "tab1") return log.tab === "Tab 1";
+      if (selectedLogTab === "tab2") return log.tab === "Tab 2";
+      if (selectedLogTab === "tab3") return log.tab === "Tab 3";
+      if (selectedLogTab === "tab4") return log.tab === "Tab 4";
+      return true;
     });
-  }, [campaignLogs, selectedLogTab, appliedLogSearchQuery, appliedLogSelectedCountry, appliedLogSelectedEmailStatus]);
+  }, [campaignLogs, selectedLogTab]);
 
   // Calculate stats for the selected tab
   const tabStats = useMemo(() => {
@@ -645,11 +435,11 @@ export default function AllCampaignsPage() {
 
       {/* Filters Card */}
       <Card className="bg-gradient-to-br from-background to-muted/20 border-border/50">
-        {/* <CardHeader>
+        <CardHeader>
           <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader> */}
+        </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* Search */}
             <div>
               <Label htmlFor="search" className="text-sm mb-2">
@@ -703,96 +493,33 @@ export default function AllCampaignsPage() {
               </Select>
             </div>
 
-            {/* Date Range Picker */}
+            {/* Date From */}
             <div>
-              <Label className="text-sm mb-2 block">Date Range</Label>
-              <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full h-9 bg-transparent border border-border rounded-lg px-3 py-2 text-foreground font-medium justify-between hover:border-muted-foreground transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CalendarDays className="h-4 w-4" />
-                      {getDateRangeText()}
-                    </div>
-                    {isPopoverOpen ? (
-                      <CalendarDays className="h-4 w-4 rotate-180 text-foreground" />
-                    ) : (
-                      <CalendarDays className="h-4 w-4 rotate-90 text-muted-foreground" />
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-auto p-0 bg-background rounded-xl shadow-xl border border-border"
-                  align="end"
-                >
-                  <div className="flex">
-                    {/* Presets  */}
-                    <div className="border-r border-border p-3 max-w-[160px]">
-                      <div className="space-y-1">
-                        {datePresets.map((preset) => (
-                          <Button
-                            key={preset.id}
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const range = preset.getValue();
-                              setDateRange({
-                                from: range.from,
-                                to: range.to,
-                                preset: preset.id,
-                              });
-                            }}
-                            className={`w-full justify-start text-right h-8 px-2 text-xs transition-all duration-200 ${
-                              dateRange.preset === preset.id
-                                ? "bg-foreground text-background font-medium"
-                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                            }`}
-                          >
-                            {preset.label}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Calendar */}
-                    <div className="p-4">
-                      <Calendar
-                        mode="range"
-                        selected={{ from: dateRange.from, to: dateRange.to }}
-                        onSelect={(range) => {
-                          if (range?.from) {
-                            setDateRange({
-                              from: range.from,
-                              to: range.to || range.from,
-                              preset: "custom",
-                            });
-                          }
-                        }}
-                        numberOfMonths={2}
-                      />
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Label htmlFor="date-from" className="text-sm mb-2">
+                From Date
+              </Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9"
+              />
             </div>
-          </div>
 
-          {/* Apply and Reset Buttons */}
-          <div className="flex justify-end gap-3 mt-4">
-            <Button
-              variant="outline"
-              onClick={handleResetFilters}
-              className="h-9"
-            >
-              Reset Filters
-            </Button>
-            <Button
-              onClick={handleApplyFilters}
-              className="h-9 bg-primary hover:bg-primary/90"
-            >
-              Apply Filters
-            </Button>
+            {/* Date To */}
+            <div>
+              <Label htmlFor="date-to" className="text-sm mb-2">
+                To Date
+              </Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -874,7 +601,9 @@ export default function AllCampaignsPage() {
                     <TableCell className="text-center font-medium">
                       {campaign.number}
                     </TableCell>
-                    
+                    <TableCell className="text-center text-sm">
+                      {format(campaign.addedAt, "MMM dd, yyyy")}
+                    </TableCell>
                     <TableCell className="text-center text-sm">
                       <span className="line-clamp-1">{campaign.appName}</span>
                       <p className="text-xs text-muted-foreground">
@@ -908,28 +637,19 @@ export default function AllCampaignsPage() {
                         {campaign.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {format(campaign.addedAt, "MMM dd, yyyy")}
-                    </TableCell>
                     <TableCell className="text-center">
                       <Toggle
                         pressed={campaign.sendPermission}
                         onPressedChange={() =>
                           toggleSendPermission(campaign.id)
                         }
-                        className="data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700 dark:data-[state=on]:text-green-400 gap-1.5"
+                        className="data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700 dark:data-[state=on]:text-green-400"
                         aria-label="Toggle send permission"
                       >
                         {campaign.sendPermission ? (
-                          <>
-                            <Zap className="w-4 h-4" />
-                            <span className="text-xs font-medium">On</span>
-                          </>
+                          <Zap className="w-4 h-4" />
                         ) : (
-                          <>
-                            <Zap className="w-4 h-4 opacity-50" />
-                            <span className="text-xs font-medium opacity-50">Off</span>
-                          </>
+                          <Zap className="w-4 h-4 opacity-50" />
                         )}
                       </Toggle>
                     </TableCell>
@@ -940,18 +660,22 @@ export default function AllCampaignsPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex justify-center items-center gap-1">
-                       
-
-                   
-
-                        {/* Edit (only for Draft campaigns) */}
+                        {/* View */}
                         <Button
                           variant="outline"
                           size="sm"
                           className="h-8 w-8 p-0"
-                          title="Edit Campaign"
-                          onClick={() => handleEditCampaign(campaign)}
-                          disabled={campaign.status !== "Draft"}
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+
+                        {/* Edit */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          title="Edit"
                         >
                           <FiEdit2 className="w-4 h-4" />
                         </Button>
@@ -962,7 +686,6 @@ export default function AllCampaignsPage() {
                           size="sm"
                           className="h-8 w-8 p-0"
                           title="Organization Details"
-                          onClick={() => handleViewOrgDetails(campaign)}
                         >
                           <MdOutlineStorefront className="w-4 h-4" />
                         </Button>
@@ -1031,69 +754,17 @@ export default function AllCampaignsPage() {
                   <TabsTrigger value="tab4">Tab 4</TabsTrigger>
                 </TabsList>
 
-                {/* Log Filters */}
-                <div className="flex gap-3 py-3 px-0">
-                  <Input
-                    placeholder="Search person name or email..."
-                    value={logSearchQuery}
-                    onChange={(e) => setLogSearchQuery(e.target.value)}
-                    className="h-9 flex-1 text-xs"
-                  />
-                  <Select value={logSelectedCountry} onValueChange={setLogSelectedCountry}>
-                    <SelectTrigger className="h-9 w-36 text-xs">
-                      <SelectValue placeholder="All Countries" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Countries</SelectItem>
-                      <SelectItem value="United States">United States</SelectItem>
-                      <SelectItem value="United Kingdom">United Kingdom</SelectItem>
-                      <SelectItem value="Canada">Canada</SelectItem>
-                      <SelectItem value="Australia">Australia</SelectItem>
-                      <SelectItem value="Germany">Germany</SelectItem>
-                      <SelectItem value="France">France</SelectItem>
-                      <SelectItem value="India">India</SelectItem>
-                      <SelectItem value="Singapore">Singapore</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={logSelectedEmailStatus} onValueChange={setLogSelectedEmailStatus}>
-                    <SelectTrigger className="h-9 w-36 text-xs">
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="Success">Success</SelectItem>
-                      <SelectItem value="Failed">Failed</SelectItem>
-                      <SelectItem value="Pending">Pending</SelectItem>
-                      <SelectItem value="Bounced">Bounced</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    size="sm"
-                    onClick={handleApplyLogFilters}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Apply
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleResetLogFilters}
-                    className="h-9 px-3 text-xs"
-                  >
-                    Reset
-                  </Button>
-                </div>
-
                 <TabsContent value={selectedLogTab} className="flex-1 mt-4 overflow-hidden">
                   <ScrollArea className="h-[calc(85vh-180px)]">
                     <Table>
-                      <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableHeader>
                         <TableRow>
                           <TableHead className="w-12">S.No</TableHead>
                           <TableHead className="min-w-[200px]">Person Info</TableHead>
                           <TableHead className="w-24">Country</TableHead>
-                          <TableHead className="min-w-[100px]">Email Status</TableHead>
-                          <TableHead className="min-w-[120px]">Sent Date & Time</TableHead>
+                          <TableHead className="min-w-[120px]">Approachable</TableHead>
+                          <TableHead className="min-w-[100px]">Status</TableHead>
+                          <TableHead className="min-w-[100px]">Sent Time</TableHead>
                           <TableHead className="w-32">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -1118,19 +789,34 @@ export default function AllCampaignsPage() {
                               </TableCell>
                               <TableCell className="text-sm">{log.country}</TableCell>
                               <TableCell>
+                                <Badge className={getApproachabilityColor(log.approachability)}>
+                                  {log.approachability === "Approachable" && (
+                                    <>
+                                      <Check className="w-3 h-3 mr-1" />
+                                      <span className="text-xs">Yes</span>
+                                    </>
+                                  )}
+                                  {log.approachability === "Cautious" && (
+                                    <>
+                                      <AlertCircle className="w-3 h-3 mr-1" />
+                                      <span className="text-xs">Cautious</span>
+                                    </>
+                                  )}
+                                  {log.approachability === "Not Approachable" && (
+                                    <>
+                                      <X className="w-3 h-3 mr-1" />
+                                      <span className="text-xs">No</span>
+                                    </>
+                                  )}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
                                 <Badge className={getEmailStatusColor(log.emailStatus)}>
                                   <span className="text-xs">{log.emailStatus}</span>
                                 </Badge>
                               </TableCell>
-                              <TableCell>
-                                <div className="space-y-0.5">
-                                  <p className="font-bold text-sm">
-                                    {format(log.sentTime, "MMM dd, yyyy")}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {format(log.sentTime, "HH:mm")}
-                                  </p>
-                                </div>
+                              <TableCell className="text-sm">
+                                {format(log.sentTime, "MMM dd, HH:mm")}
                               </TableCell>
                               <TableCell>
                                 <div className="flex flex-col gap-1">
@@ -1429,119 +1115,6 @@ export default function AllCampaignsPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Organization Details Dialog */}
-      <Dialog open={isOrgDialogOpen} onOpenChange={setIsOrgDialogOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Organization Details</DialogTitle>
-            <DialogDescription>
-              Complete organization information for {selectedCampaign?.appName}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 p-4">
-            {/* App and Company Logos - 2 Column Layout */}
-            <div className="grid grid-cols-2 gap-6">
-              {/* App Logo Section */}
-              <div className="flex flex-col items-center space-y-4 p-6 border rounded-lg bg-muted/30">
-                <span className="text-6xl">
-                  📱
-                </span>
-                <div className="text-center space-y-2 w-full">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">App</p>
-                  <p className="font-semibold text-lg">
-                    {selectedCampaign?.appName || "App Name"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Company Logo Section */}
-              <div className="flex flex-col items-center space-y-4 p-6 border rounded-lg bg-muted/30">
-                <span className="text-6xl">
-                  🏢
-                </span>
-                <div className="text-center space-y-2 w-full">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Company</p>
-                  <p className="font-semibold text-lg">
-                    {selectedCampaign?.companyName || "Company Name"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Organization Info Card */}
-            <div className="flex flex-col items-center space-y-4 p-6 border rounded-lg bg-muted/30">
-              <div className="text-center space-y-4 w-full">
-                
-                <div className="space-y-3">
-                  {/* Website */}
-                  <div className="flex items-center justify-center gap-3">
-                    <Globe className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-                    <a
-                      href={selectedCampaign?.directUrl || "#"}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
-                    >
-                      {selectedCampaign?.directUrl || "Website"}
-                    </a>
-                  </div>
-
-                  {/* LinkedIn */}
-                  <div className="flex items-center justify-center gap-3">
-                    <Linkedin className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                    <a
-                      href="#"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
-                    >
-                      Company Profile
-                    </a>
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Additional Details */}
-                <div className="grid grid-cols-2 gap-4 pt-2">
-                  <div className="text-left space-y-1">
-                    <p className="text-xs text-muted-foreground font-medium">Category</p>
-                    <Badge className={getCategoryColor(selectedCampaign?.category || "Other")}>
-                      {selectedCampaign?.category}
-                    </Badge>
-                  </div>
-                  <div className="text-left space-y-1">
-                    <p className="text-xs text-muted-foreground font-medium">Status</p>
-                    <Badge className={getStatusColor(selectedCampaign?.status || "Draft")}>
-                      {selectedCampaign?.status}
-                    </Badge>
-                  </div>
-                  <div className="text-left space-y-1">
-                    <p className="text-xs text-muted-foreground font-medium">Bundle ID</p>
-                    <p className="text-sm font-mono">{selectedCampaign?.bundleId}</p>
-                  </div>
-                  <div className="text-left space-y-1">
-                    <p className="text-xs text-muted-foreground font-medium">Added Date</p>
-                    <p className="text-sm">{selectedCampaign?.addedAt ? format(selectedCampaign.addedAt, "MMM dd, yyyy") : "N/A"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Campaign Dialog */}
-      <EditCampaignDialog
-        open={isEditDialogOpen}
-        onOpenChange={setIsEditDialogOpen}
-        campaign={editingCampaign}
-        onSaveAndActivate={handleSaveAndActivate}
-      />
   
     </div>
   );

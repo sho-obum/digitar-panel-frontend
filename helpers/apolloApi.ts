@@ -1,8 +1,6 @@
 import { log } from "@/lib/logger";
 const APOLLO_BASE_URL = process.env.APOLLO_BASE_URL;
 const APOLLO_API_KEY = process.env.APOLLO_API_KEY ;
-console.log("Using APOLLO_BASE_URL:", APOLLO_BASE_URL ? "✅ Loaded" : "❌ Missing");
-console.log("Using Apollo API Key:", APOLLO_API_KEY ? "✅ Loaded" : "❌ Missing");
 
 export async function orgDataByWeb(domain: string) {
   const url = `${APOLLO_BASE_URL}/organizations/enrich?domain=${encodeURIComponent(domain)}`;
