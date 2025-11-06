@@ -86,46 +86,55 @@ export function BorderBeam({
 }
 
 export function EmailTemplatePlaceholderBox() {
+  const placeholders = [
+    { label: "Name", value: "{name}" },
+    { label: "Company", value: "{company}" },
+    { label: "App Name", value: "{appname}" },
+    { label: "Email", value: "{email}" },
+    { label: "Phone", value: "{phone}" },
+    { label: "Position", value: "{position}" },
+  ];
+
+  const handleCopy = (value: string) => {
+    navigator.clipboard.writeText(value);
+    // Optional: Show a toast notification
+    console.log(`Copied: ${value}`);
+  };
+
   return (
-    <div className="relative h-full w-full rounded-lg border bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800  overflow-hidden">
-      <BorderBeam
-        lightWidth={300}
-        duration={12}
-        lightColor="#3b82f6"
-        borderWidth={2}
-        className="rounded-lg"
-      />
-      <div className="relative p-4 z-10 space-y-4">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          Placeholders
-        </h3>
-        <div className="space-y-3">
-          <div className="rounded-md bg-white/50 dark:bg-slate-800/50 p-3 border border-slate-200 dark:border-slate-700">
-            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Person Name
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400 font-mono">
-              {"{name}"}
-            </div>
-          </div>
-          <div className="rounded-md bg-white/50 dark:bg-slate-800/50 p-3 border border-slate-200 dark:border-slate-700">
-            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Company Name
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400 font-mono">
-              {"{company}"}
-            </div>
-          </div>
-          <div className="rounded-md bg-white/50 dark:bg-slate-800/50 p-3 border border-slate-200 dark:border-slate-700">
-            <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              App Name
-            </div>
-            <div className="text-sm text-slate-600 dark:text-slate-400 font-mono">
-              {"{appname}"}
-            </div>
-          </div>
-        </div>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium text-muted-foreground">
+          Available Variables:
+        </span>
+        <span className="text-xs text-muted-foreground">
+          (Click to copy)
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {placeholders.map((placeholder) => (
+          <button
+            key={placeholder.value}
+            onClick={() => handleCopy(placeholder.value)}
+            className="group inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium
+              bg-emerald-50 dark:bg-emerald-950/30 
+              text-emerald-700 dark:text-emerald-400 
+              border border-emerald-200 dark:border-emerald-800
+              hover:bg-emerald-100 dark:hover:bg-emerald-900/40
+              hover:border-emerald-300 dark:hover:border-emerald-700
+              hover:shadow-sm hover:shadow-emerald-200/50 dark:hover:shadow-emerald-900/50
+              transition-all duration-200 
+              active:scale-95
+              cursor-pointer"
+          >
+            <span>{placeholder.label}</span>
+            <code className="text-[10px] font-mono opacity-70 group-hover:opacity-100 transition-opacity">
+              {placeholder.value}
+            </code>
+          </button>
+        ))}
       </div>
     </div>
   );
 }
+

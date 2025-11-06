@@ -2,6 +2,7 @@ import "./globals.css";
 import { ThemeProvider } from "next-themes";
 import type { Metadata } from "next";
 import Providers from "./providers/session-providers";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "SaaS Frontend",
@@ -24,6 +25,7 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           {children}
+          <Toaster />
         </ThemeProvider>
         </Providers>
       </body>

@@ -72,16 +72,16 @@ const data = {
       icon: BookOpen,
       items: [
         {
+          title: "Configure Template",
+          url: "/template/config-template",
+        },
+        {
           title: "Email Templates",
           url: "/template/email-template",
         },
         {
-          title: "Sub Item 2",
-          url: "#",
-        },
-        {
-          title: "Sub Item 3",
-          url: "#",
+          title: "Manage Categories",
+          url: "/template/manage-categories",
         },
       
       ],

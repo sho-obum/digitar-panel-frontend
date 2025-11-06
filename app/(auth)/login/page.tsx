@@ -6,7 +6,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { EyeOff, Mail, Lock, Eye } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { EyeOff, Mail, Lock, Eye, Send } from "lucide-react";
 
 function LoginContent() {
   const router = useRouter();
@@ -18,6 +26,18 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // Contact form dialog state
+  const [isContactDialogOpen, setIsContactDialogOpen] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    company: "",
+    message: "",
+  });
+  const [isSubmittingContact, setIsSubmittingContact] = useState(false);
+  const [contactError, setContactError] = useState("");
+  const [contactSuccess, setContactSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,16 +154,152 @@ function LoginContent() {
             >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
-          </form>
+      </form>
 
           <p className="text-center text-sm text-muted-foreground">
-            Don’t have an account?{" "}
-            <button className="text-blue-300 hover:text-blue-400 font-medium transition-colors">
+            Don't have an account?{" "}
+            <button
+              onClick={() => setIsContactDialogOpen(true)}
+              className="text-blue-300 hover:text-blue-400 font-medium transition-colors"
+            >
               Contact Us
             </button>
           </p>
         </div>
       </div>
+
+      {/* Contact Us Dialog */}
+      <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Get in Touch</DialogTitle>
+            <DialogDescription>
+              Fill out the form below and our team will get back to you shortly.
+            </DialogDescription>
+          </DialogHeader>
+
+          {contactSuccess ? (
+            <div className="text-center space-y-4 py-6">
+              <div className="text-green-600 text-lg font-medium">
+                ✓ Message Sent Successfully!
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Thank you for reaching out. We'll be in touch soon.
+              </p>
+              <Button
+                onClick={() => {
+                  setIsContactDialogOpen(false);
+                  setContactForm({ name: "", email: "", company: "", message: "" });
+                  setContactSuccess(false);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Close
+              </Button>
+            </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setIsSubmittingContact(true);
+                setContactError("");
+
+                try {
+                  // Simulate API call
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                  setContactSuccess(true);
+                } catch (err) {
+                  setContactError("Failed to send message. Please try again.");
+                } finally {
+                  setIsSubmittingContact(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="contact-name" className="text-sm font-medium">
+                  Full Name
+                </Label>
+                <Input
+                  id="contact-name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={contactForm.name}
+                  onChange={(e) =>
+                    setContactForm({ ...contactForm, name: e.target.value })
+                  }
+                  className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-blue-400/50 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact-email" className="text-sm font-medium">
+                  Email Address
+                </Label>
+                <Input
+                  id="contact-email"
+                  type="email"
+                  placeholder="john@example.com"
+                  value={contactForm.email}
+                  onChange={(e) =>
+                    setContactForm({ ...contactForm, email: e.target.value })
+                  }
+                  className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-blue-400/50 transition-all"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact-company" className="text-sm font-medium">
+                  Company Name
+                </Label>
+                <Input
+                  id="contact-company"
+                  type="text"
+                  placeholder="Your Company"
+                  value={contactForm.company}
+                  onChange={(e) =>
+                    setContactForm({ ...contactForm, company: e.target.value })
+                  }
+                  className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-blue-400/50 transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="contact-message" className="text-sm font-medium">
+                  Message
+                </Label>
+                <Textarea
+                  id="contact-message"
+                  placeholder="Tell us more about your inquiry..."
+                  value={contactForm.message}
+                  onChange={(e) =>
+                    setContactForm({ ...contactForm, message: e.target.value })
+                  }
+                  className="min-h-24 resize-none bg-background/50 border-border/50 focus:bg-background focus:border-blue-400/50 transition-all"
+                  required
+                />
+              </div>
+
+              {contactError && (
+                <p className="text-red-500 text-sm text-center font-medium">
+                  {contactError}
+                </p>
+              )}
+
+              <Button
+                type="submit"
+                disabled={isSubmittingContact}
+                className="w-full h-10 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-medium transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isSubmittingContact ? "Sending..." : "Send Message"}
+              </Button>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Right side - Hero Image */}
       <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/50 dark:to-orange-950/50 rounded-r-xl overflow-hidden">
