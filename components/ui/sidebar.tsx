@@ -54,6 +54,14 @@ function useSidebar() {
   return context
 }
 
+// Cookie se value read karne ke liye helper function - only in browser
+function getCookieValue(name: string): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  const value = `; ${document.cookie}`
+  const parts = value.split(`; ${name}=`)
+  if (parts.length === 2) return parts.pop()?.split(';').shift()
+}
+
 function SidebarProvider({
   defaultOpen = true,
   open: openProp,
@@ -70,7 +78,11 @@ function SidebarProvider({
   const isMobile = useIsMobile()
   const [openMobile, setOpenMobile] = React.useState(false)
 
-  const [_open, _setOpen] = React.useState(defaultOpen)
+  // Cookie se saved state read karo, agar nahi mila toh defaultOpen use karo
+  const [_open, _setOpen] = React.useState(() => {
+    const saved = getCookieValue(SIDEBAR_COOKIE_NAME)
+    return saved ? saved === 'true' : defaultOpen
+  })
   const open = openProp ?? _open
   // Cookie mein state save karna - browser refresh ke baad bhi yaad rahega
   const setOpen = React.useCallback(

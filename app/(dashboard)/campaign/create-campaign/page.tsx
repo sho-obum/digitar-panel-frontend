@@ -365,7 +365,7 @@ export default function CreateCampaignPage({
 
     try {
       // Call preview-link API
-      const response = await fetch("/api/preview-link", {
+      const response = await fetch("/api/app-details", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -49,14 +49,18 @@ export function TeamSwitcher({
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" className="pointer-events-none">
           <div className="flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
-            {typeof activeTeam.logo === 'string' ? (
-              <img 
-                src={logoSrc} 
+            {typeof activeTeam.logo === "string" && logoSrc ? (
+              <img
+                src={logoSrc}
                 alt={`${activeTeam.name} logo`}
                 className="size-8 object-contain group-data-[collapsible=icon]:size-8"
               />
-            ) : (
+            ) : typeof activeTeam.logo === "function" ? (
               <activeTeam.logo className="size-5 group-data-[collapsible=icon]:size-6" />
+            ) : (
+              <div className="flex size-8 items-center justify-center bg-gray-200 text-gray-600 text-sm font-semibold uppercase">
+                {activeTeam.name?.charAt(0) || "?"}
+              </div>
             )}
           </div>
           <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">

@@ -184,7 +184,7 @@ const EmailAnalyticsChart = () => {
           Trending up by 8.3% this month <TrendingUp className="h-4 w-4" />
         </div>
         <div className="text-muted-foreground leading-none">
-          Total emails sent in the last 12 months
+          Total emails sent in the last 12 Months
         </div>
       </CardFooter>
     </Card>
