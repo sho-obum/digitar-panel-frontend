@@ -1,32 +1,45 @@
 /**
- * Detects if a given link is from App Store, Play Store, or a website/domain.
- * @param {string} url - The URL to analyze.
- * @returns {"ios" | "android" | "web" | "invalid"}
- */
-export function detectLinkType(url: string): "ios" | "android" | "web" | "invalid" {
-  if (!url || typeof url !== "string") return "invalid";
 
-  // Ensure URL is well-formed
+ * @param {string} url - The URL to analyze.
+ * @returns {{ type: "ios" | "android" | "web" | "invalid", appId?: string }}
+
+ */
+import { log } from "@/lib/logger";
+export function detectLinkType(
+  url: string
+): { type: "ios" | "android" | "web" | "invalid"; appId?: string } {
+  if (!url || typeof url !== "string") return { type: "invalid" };
+  log.info('Detecting link type', { url });
+  // Normalize and ensure protocol
   let normalizedUrl = url.trim();
   if (!/^https?:\/\//i.test(normalizedUrl)) {
-    normalizedUrl = "https://" + normalizedUrl; // handle "digitarmedia.com" type
+    normalizedUrl = "https://" + normalizedUrl; 
   }
 
   try {
     const parsed = new URL(normalizedUrl);
     const hostname = parsed.hostname.toLowerCase();
 
-    // iOS App Store
-    if (hostname.includes("apps.apple.com")) return "ios";
+    // 🔹 iOS App Store detection
+    if (hostname.includes("apps.apple.com")) {
+      const match = normalizedUrl.match(/\/id(\d+)/);
+      const appId = match ? match[1] : undefined;
+      return { type: "ios", ...(appId ? { appId } : {}) };
+    }
 
-    // Google Play Store
-    if (hostname.includes("play.google.com")) return "android";
+    // 🔹 Google Play Store detection
+    if (hostname.includes("play.google.com")) {
+      const appId = parsed.searchParams.get("id") || undefined;
+      return { type: "android", ...(appId ? { appId } : {}) };
+    }
 
-    // Any other valid domain
-    if (hostname.match(/[a-z0-9.-]+\.[a-z]{2,}$/)) return "web";
+    // 🔹 Generic domain (valid)
+    if (hostname.match(/[a-z0-9.-]+\.[a-z]{2,}$/)) {
+      return { type: "web" };
+    }
 
-    return "invalid";
+    return { type: "invalid" };
   } catch {
-    return "invalid";
+    return { type: "invalid" };
   }
 }
