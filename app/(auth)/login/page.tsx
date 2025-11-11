@@ -154,7 +154,19 @@ function LoginContent() {
             >
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
-      </form>
+          </form>
+
+          {/* Test Credentials Info */}
+          <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+              <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Test Login Credentials</p>
+            </div>
+            <div className="text-xs text-blue-700 dark:text-blue-400 space-y-1 ml-4">
+              <p>📧 Email: <span className="font-mono font-semibold">test@gmail.com</span></p>
+              <p>🔑 Password: <span className="font-mono font-semibold">test</span></p>
+            </div>
+          </div>
 
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{" "}

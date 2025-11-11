@@ -62,6 +62,17 @@ export const authOptions: AuthOptions = {
             return null;
           }
 
+          // HARDCODED TEST USER (bypasses database)
+          if (credentials.email === "test@gmail.com" && credentials.password === "test") {
+            console.log(" Test user login successful");
+            return {
+              id: "test-user-id",
+              email: "test@gmail.com",
+              role: "admin",
+              fullname: "Test User",
+            };
+          }
+
           const [rows]: any = await pool.query(
             "SELECT * FROM users WHERE email = ? LIMIT 1",
             [credentials.email]
