@@ -363,6 +363,51 @@ export default function CreateCampaignPage({
     if (!appUrl.trim()) return;
     setIsFetchingApp(true);
 
+    // Check for bypass dummy text
+    if (appUrl.toLowerCase().includes("test") || appUrl.toLowerCase().includes("demo") || appUrl.toLowerCase() === "dummy") {
+      // Use placeholder data for bypass
+      setTimeout(() => {
+        setAppData({
+          title: "Demo Food Delivery App",
+          name: "Demo Food Delivery App",
+          logo: "https://via.placeholder.com/80",
+          bundleId: "com.demo.foodapp",
+          appid: "com.demo.foodapp",
+          storeLink: "https://play.google.com/store/apps/details?id=com.demo.foodapp"
+        });
+        setOrgData({
+          orgName: "Demo Food Company Inc.",
+          orgLogo: "https://via.placeholder.com/80",
+          orgWebsite: "https://demofood.com",
+          linkedin: "https://linkedin.com/company/demofood",
+          orgID: "demo123"
+        });
+        setIsFetchingApp(false);
+        setShowDetails(true);
+
+        setTimeout(() => {
+          const el = document.getElementById("confirm-details");
+          if (el && typeof window !== "undefined") {
+            const rect = el.getBoundingClientRect();
+            const target =
+              window.pageYOffset +
+              rect.top -
+              window.innerHeight / 2 +
+              rect.height / 2;
+            window.scrollTo({
+              top: Math.max(0, Math.floor(target)),
+              behavior: "smooth",
+            });
+          }
+          const btn = document.getElementById(
+            "approve-btn"
+          ) as HTMLButtonElement | null;
+          if (btn) setTimeout(() => btn.focus(), 600);
+        }, 120);
+      }, 1200); // Simulate loading
+      return;
+    }
+
     try {
       // Call preview-link API
       const response = await fetch("/api/app-details", {
@@ -654,19 +699,24 @@ export default function CreateCampaignPage({
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-3">
-                <Input
-                  placeholder="Enter app store URL (e.g. https://play.google.com/store/apps/details?id=...)"
-                  value={appUrl}
-                  onChange={(e) => setAppUrl(e.target.value)}
-                  disabled={isFetchingApp || showDetails}
-                />
-                <Button
-                  onClick={handleFetch}
-                  disabled={isFetchingApp || !appUrl.trim() || showDetails}
-                >
-                  Fetch
-                </Button>
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="Enter app store URL or type 'test', 'demo', or 'dummy' for quick preview"
+                    value={appUrl}
+                    onChange={(e) => setAppUrl(e.target.value)}
+                    disabled={isFetchingApp || showDetails}
+                  />
+                  <Button
+                    onClick={handleFetch}
+                    disabled={isFetchingApp || !appUrl.trim() || showDetails}
+                  >
+                    Fetch
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  💡 Quick tip: Enter any text containing &ldquo;test&rdquo;, &ldquo;demo&rdquo;, or just &ldquo;dummy&rdquo; to skip to Step 2 with placeholder data
+                </p>
               </div>
             </CardContent>
           </Card>
