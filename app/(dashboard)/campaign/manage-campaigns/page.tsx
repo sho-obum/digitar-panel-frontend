@@ -63,12 +63,172 @@ import {
   UserCheck,
   TrendingUp,
   Users,
+  Download,
+  Search,
 } from "lucide-react";
 import { FiEdit2, FiTrash2, FiEye, FiBarChart2 } from "react-icons/fi";
 import { MdOutlineStorefront } from "react-icons/md";
 import { Toggle } from "@/components/ui/toggle";
 import { format } from "date-fns";
 import { motion } from "framer-motion";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { FaLinkedin } from "react-icons/fa";
+
+/* Lottie Loader */
+function LottieLoader({ size = 42 }: { size?: number }) {
+  return (
+    <DotLottieReact
+      src="https://lottie.host/d767bfb4-1336-477f-b66b-fc4400623846/f9KaIPaI40.lottie"
+      loop
+      autoplay
+      style={{ width: size, height: size }}
+    />
+  );
+}
+
+/* Contact Type */
+type Contact = {
+  person: string;
+  email: string;
+  mobile: string;
+  linkedin?: string;
+  fetched?: boolean;
+};
+
+/* Contact Scanner Component */
+function ContactScanner({
+  contacts,
+  progress,
+  total,
+  status,
+  isScanning,
+}: {
+  contacts: Contact[];
+  progress: number;
+  total: number;
+  status: string;
+  isScanning: boolean;
+}) {
+  const remaining = Math.max(total - contacts.length, 0);
+  const placeholderRows = Array.from({ length: remaining });
+
+  return (
+    <div className="space-y-4">
+      {/* header with loader + text */}
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0">
+          <LottieLoader size={32} />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-foreground">{status}</p>
+          <p className="text-xs text-muted-foreground">
+            Scanning contacts… {progress}/{total}
+          </p>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-gray-200/30 dark:border-gray-800/30 transition-all duration-500 max-h-[400px] overflow-y-auto">
+        <table className="w-full text-sm text-gray-500 dark:text-gray-400">
+          <thead className="text-xs uppercase text-gray-400 dark:text-gray-500 transition-all duration-500 sticky top-0 bg-background">
+            <tr className="border-b border-gray-200/40 dark:border-gray-800/40">
+              <th className="p-3 text-center w-[30%] border-r border-gray-200/30 dark:border-gray-800/30">
+                Name
+              </th>
+              <th className="p-3 text-center w-[35%] border-r border-gray-200/30 dark:border-gray-800/30">
+                Mail
+              </th>
+              <th className="p-3 text-center w-[20%] border-r border-gray-200/30 dark:border-gray-800/30">
+                Phone
+              </th>
+              <th className="p-3 text-center w-[15%]">LinkedIn</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contacts.map((c, i) =>
+              c ? (
+                <tr
+                  key={i}
+                  className="animate-[scanIn_0.4s_ease-out_1] transition-all duration-500 border-b border-gray-200/20 dark:border-gray-800/20"
+                  style={{ animationDelay: `${i * 120}ms` }}
+                >
+                  <td className="p-3 border-r border-gray-200/30 dark:border-gray-800/30 text-foreground">
+                    {c.person}
+                  </td>
+                  <td className="p-3 truncate border-r border-gray-200/30 dark:border-gray-800/30 text-foreground">
+                    {c.email}
+                  </td>
+                  <td className="p-3 md:whitespace-nowrap border-r border-gray-200/30 dark:border-gray-800/30 text-foreground">
+                    {c.mobile}
+                  </td>
+                  <td className="p-3 truncate text-center">
+                    {c.fetched ? (
+                      <a
+                        href={
+                          c.linkedin
+                            ? c.linkedin
+                            : `https://www.bing.com/search?q=${encodeURIComponent(
+                                `${c.person} linkedin`
+                              )}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                        aria-label={`View ${c.person} on LinkedIn`}
+                      >
+                        <span className="text-xs text-gray-400 dark:text-gray-500">Fetched</span>
+                        <FaLinkedin className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">Fetching...</span>
+                    )}
+                  </td>
+                </tr>
+              ) : null
+            )}
+
+            {placeholderRows.map((_, i) => (
+              <tr key={`ph-${i}`} className="border-b border-gray-200/20 dark:border-gray-800/20">
+                <td className="p-3 border-r border-gray-200/30 dark:border-gray-800/30">
+                  <div className="h-4 w-full overflow-hidden rounded transition-all duration-500 bg-gray-200/30 dark:bg-gray-800/30">
+                    <div className="h-full w-1/3 animate-[shimmer_1.2s_infinite] bg-gray-200/40 dark:bg-gray-700/40" />
+                  </div>
+                </td>
+                <td className="p-3 border-r border-gray-200/30 dark:border-gray-800/30">
+                  <div className="h-4 w-full overflow-hidden rounded transition-all duration-500 bg-gray-200/30 dark:bg-gray-800/30">
+                    <div className="h-full w-1/3 animate-[shimmer_1.2s_infinite] bg-gray-200/40 dark:bg-gray-700/40" />
+                  </div>
+                </td>
+                <td className="p-3 border-r border-gray-200/30 dark:border-gray-800/30">
+                  <div className="h-4 w-full overflow-hidden rounded transition-all duration-500 bg-gray-200/30 dark:bg-gray-800/30">
+                    <div className="h-full w-1/3 animate-[shimmer_1.2s_infinite] bg-gray-200/40 dark:bg-gray-700/40" />
+                  </div>
+                </td>
+                <td className="p-3 text-center">
+                  <span className="text-xs text-gray-400 dark:text-gray-500">Fetching...</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(300%); }
+            }
+            @keyframes scanIn {
+              0% { opacity: 0; transform: translateY(6px); }
+              100% { opacity: 1; transform: translateY(0); }
+            }
+          `,
+        }}
+      />
+    </div>
+  );
+}
 
 type Campaign = {
   id: string;
@@ -301,6 +461,17 @@ export default function AllCampaignsPage() {
     "Affiliate", "Partnership", "Growth", "Expansion", 
     "Marketing", "Sales", "Collaboration", "Integration"
   ]);
+  const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
+  const [fetchedKeywords, setFetchedKeywords] = useState<string[]>([]);
+  const [suggestedKeywords, setSuggestedKeywords] = useState([
+    "Revenue Share", "Commission", "API Integration", "White Label",
+    "Joint Venture", "Cross-promotion", "Co-marketing", "Referral Program"
+  ]);
+  
+  // Contact fetching states
+  const [isScanningContacts, setIsScanningContacts] = useState(false);
+  const [fetchedContacts, setFetchedContacts] = useState<Contact[]>([]);
+  const [totalContactsToFetch, setTotalContactsToFetch] = useState(0);
 
   // Filter and sort campaigns
   const filteredAndSortedCampaigns = useMemo(() => {
@@ -386,9 +557,98 @@ export default function AllCampaignsPage() {
     setUsedKeywords(usedKeywords.filter(k => k !== keyword));
   };
 
-  const handleFetchKeywords = () => {
-    // TODO: API call to fetch keywords
-    console.log("Fetching keywords:", newKeywords, "Entries:", numberOfEntries);
+  const handleAddSuggestedKeyword = (keyword: string) => {
+    if (!usedKeywords.includes(keyword)) {
+      setUsedKeywords([...usedKeywords, keyword]);
+      // Add to textarea as well
+      setNewKeywords(prev => prev ? `${prev}, ${keyword}` : keyword);
+    }
+  };
+
+  const handleFetchKeywords = async () => {
+    if (!newKeywords.trim()) return;
+    
+    setIsLoadingKeywords(true);
+    setFetchedContacts([]);
+    
+    // Scroll to contact scanner after a brief delay
+    setTimeout(() => {
+      const contactScannerElement = document.getElementById('contact-scanner-section');
+      if (contactScannerElement) {
+        contactScannerElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 2100);
+    
+    // Simulate AI processing (2 seconds)
+    setTimeout(() => {
+      // Parse comma-separated keywords
+      const newKeywordsList = newKeywords
+        .split(",")
+        .map(k => k.trim())
+        .filter(k => k.length > 0)
+        .map(k => k.charAt(0).toUpperCase() + k.slice(1));
+      
+      // Simulate fetched keywords (in real app, this comes from API)
+      const simulatedFetched = [
+        "B2B Partnership", "Strategic Alliance", "Lead Generation",
+        "Customer Acquisition", "Channel Partner", "Reseller Program"
+      ];
+      
+      // Merge with existing keywords (avoid duplicates)
+      const allKeywords = [...usedKeywords];
+      newKeywordsList.forEach(kw => {
+        if (!allKeywords.includes(kw)) allKeywords.push(kw);
+      });
+      simulatedFetched.forEach(kw => {
+        if (!allKeywords.includes(kw)) allKeywords.push(kw);
+      });
+      
+      setUsedKeywords(allKeywords);
+      setFetchedKeywords(simulatedFetched);
+      setNewKeywords("");
+      setIsLoadingKeywords(false);
+      
+      // Start contact scanning
+      const entriesCount = parseInt(numberOfEntries) || 50;
+      setTotalContactsToFetch(entriesCount);
+      setIsScanningContacts(true);
+      
+      // Simulate progressive contact fetching
+      const mockContacts: Contact[] = [
+        { person: "John Smith", email: "john.smith@company.com", mobile: "+1-555-0101", linkedin: "https://linkedin.com/in/johnsmith" },
+        { person: "Sarah Johnson", email: "sarah.j@business.io", mobile: "+1-555-0102", linkedin: "https://linkedin.com/in/sarahj" },
+        { person: "Michael Chen", email: "m.chen@startup.co", mobile: "+1-555-0103", linkedin: "https://linkedin.com/in/mchen" },
+        { person: "Emily Davis", email: "emily.davis@firm.com", mobile: "+1-555-0104", linkedin: "https://linkedin.com/in/emilyd" },
+        { person: "David Wilson", email: "d.wilson@corp.net", mobile: "+1-555-0105", linkedin: "https://linkedin.com/in/davidw" },
+        { person: "Lisa Anderson", email: "lisa.a@enterprise.com", mobile: "+1-555-0106", linkedin: "https://linkedin.com/in/lisaa" },
+        { person: "James Martinez", email: "james.m@agency.io", mobile: "+1-555-0107", linkedin: "https://linkedin.com/in/jamesm" },
+        { person: "Jennifer Taylor", email: "j.taylor@company.org", mobile: "+1-555-0108", linkedin: "https://linkedin.com/in/jtaylor" },
+        { person: "Robert Brown", email: "r.brown@business.net", mobile: "+1-555-0109", linkedin: "https://linkedin.com/in/rbrown" },
+        { person: "Maria Garcia", email: "maria.g@startup.com", mobile: "+1-555-0110", linkedin: "https://linkedin.com/in/mariag" },
+      ];
+      
+      let currentIndex = 0;
+      const interval = setInterval(() => {
+        if (currentIndex < Math.min(entriesCount, mockContacts.length)) {
+          const contact = { ...mockContacts[currentIndex % mockContacts.length], fetched: false };
+          setFetchedContacts(prev => [...prev, contact]);
+          
+          // Mark as fetched after a short delay
+          setTimeout(() => {
+            setFetchedContacts(prev => 
+              prev.map((c, idx) => 
+                idx === currentIndex ? { ...c, fetched: true } : c
+              )
+            );
+          }, 300);
+          
+          currentIndex++;
+        } else {
+          clearInterval(interval);
+          setIsScanningContacts(false);
+        }
+      }, 500);
+    }, 2000);
   };
 
   const handleToggleEmailStatus = (logId: string) => {
@@ -967,151 +1227,324 @@ export default function AllCampaignsPage() {
 
       {/* Refetch Keywords Dialog */}
       <Dialog open={isKeywordsDialogOpen} onOpenChange={setIsKeywordsDialogOpen}>
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              Refetch Keywords - {selectedCampaign?.appName}
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              Update and manage keyword targeting for this campaign
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden p-0">
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <div className="h-8 w-1 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                Refetch Keywords - {selectedCampaign?.appName}
+              </DialogTitle>
+              <DialogDescription className="text-base text-muted-foreground mt-1">
+                Add keywords and let AI fetch relevant contacts for your campaign
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
-          <div className="grid grid-cols-5 gap-6">
-            {/* LEFT SIDE - 60% (3 columns) */}
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
-              className="col-span-3 space-y-5"
-            >
-              {/* Keywords Input */}
-              <div className="relative">
-                <Label htmlFor="keywords" className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-purple-500"></div>
-                  Add New Keywords
-                </Label>
-                <Textarea
-                  id="keywords"
-                  placeholder="affiliate, partnership, growth, marketing, expansion..."
-                  value={newKeywords}
-                  onChange={(e) => setNewKeywords(e.target.value)}
-                  rows={5}
-                  className="resize-none border-2 focus:border-purple-500 transition-colors rounded-xl"
-                />
-                <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  Separate keywords with commas
-                </p>
-              </div>
-
-              {/* Number of Entries */}
-              <div className="relative">
-                <Label htmlFor="entries" className="text-sm font-semibold mb-2 flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                  Number of Entries
-                </Label>
-                <Input
-                  id="entries"
-                  type="number"
-                  placeholder="50"
-                  value={numberOfEntries}
-                  onChange={(e) => setNumberOfEntries(e.target.value)}
-                  className="w-full border-2 focus:border-blue-500 transition-colors rounded-xl"
-                />
-              </div>
-
-              {/* Fetch Button */}
-              <Button 
-                onClick={handleFetchKeywords} 
-                className="w-full h-12 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+          {/* Main Content - 60/40 Split */}
+          <div className="flex h-[calc(95vh-140px)] overflow-hidden">
+            {/* LEFT PANEL - 60% */}
+            <div className="flex-[0.6] flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+              {/* Compact Input Section */}
+              <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+                className="p-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-950"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Fetch Keywords
-              </Button>
-            </motion.div>
+                <div className="grid grid-cols-[1fr_160px] gap-3">
+                  {/* Left Column - Keywords Input */}
+                  <div className="flex flex-col">
+                    <Label htmlFor="keywords" className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                      Keywords
+                    </Label>
+                    <Textarea
+                      id="keywords"
+                      placeholder="affiliate, partnership, growth, marketing..."
+                      value={newKeywords}
+                      onChange={(e) => setNewKeywords(e.target.value)}
+                      disabled={isLoadingKeywords}
+                      className="resize-none border-gray-300 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 rounded-lg text-sm h-[120px] shadow-sm"
+                    />
+                  </div>
 
-            {/* RIGHT SIDE - 40% (2 columns) */}
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="col-span-2 space-y-5"
-            >
-              {/* Used Keywords */}
-              <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                  Used Keywords
-                </h4>
-                <ScrollArea className="h-52 rounded-xl border-2 border-border p-4 bg-muted/30">
-                  <div className="grid grid-cols-2 gap-2">
-                    {usedKeywords.map((keyword, index) => (
-                      <motion.div
+                  {/* Right Column - Entries + Button */}
+                  <div className="flex flex-col gap-3">
+                    {/* Entries Input */}
+                    <div className="flex flex-col">
+                      <Label htmlFor="entries" className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
+                        Entries
+                      </Label>
+                      <Input
+                        id="entries"
+                        type="number"
+                        placeholder="50"
+                        value={numberOfEntries}
+                        onChange={(e) => setNumberOfEntries(e.target.value)}
+                        disabled={isLoadingKeywords}
+                        className="border-gray-300 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400 rounded-lg h-[45px] text-sm shadow-sm text-center font-semibold"
+                      />
+                    </div>
+
+                    {/* Fetch Button */}
+                    <Button 
+                      onClick={handleFetchKeywords} 
+                      disabled={isLoadingKeywords || !newKeywords.trim()}
+                      className="h-[56px] w-full bg-gray-900 hover:bg-gray-800 dark:bg-gray-100 dark:hover:bg-gray-200 text-white dark:text-gray-900 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 text-sm"
+                    >
+                      <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingKeywords ? 'animate-spin' : ''}`} />
+                      {isLoadingKeywords ? 'Fetching...' : 'Fetch'}
+                    </Button>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Contact Scanner - Main Focus */}
+              <div className="flex-1 overflow-hidden p-4" id="contact-scanner-section">
+
+
+                {isLoadingKeywords ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex flex-col items-center justify-center h-full space-y-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-xl border-2 border-dashed border-blue-300 dark:border-blue-800"
+                  >
+                    <LottieLoader size={100} />
+                    <div className="text-center space-y-2">
+                      <p className="text-base font-semibold text-blue-700 dark:text-blue-300">
+                        AI is analyzing and fetching keywords...
+                      </p>
+                      <p className="text-sm text-blue-600 dark:text-blue-400">
+                        This may take a few moments
+                      </p>
+                    </div>
+                  </motion.div>
+                ) : isScanningContacts || fetchedContacts.length > 0 ? (
+                  <div className="h-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg">
+                    <ContactScanner
+                      contacts={fetchedContacts}
+                      progress={fetchedContacts.length}
+                      total={totalContactsToFetch}
+                      status="Fetching contacts..."
+                      isScanning={isScanningContacts}
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full space-y-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-950 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700">
+                    <div className="w-20 h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
+                      <Users className="w-10 h-10 text-gray-400 dark:text-gray-600" />
+                    </div>
+                    <div className="text-center space-y-1">
+                      <p className="text-base font-semibold text-gray-700 dark:text-gray-300">
+                        No contacts fetched yet
+                      </p>
+                      <p className="text-sm text-gray-500 dark:text-gray-500">
+                        Add keywords and click "Fetch Contacts" to begin
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* RIGHT SIDEBAR - 40% */}
+            <div className="flex-[0.4] flex flex-col bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-950 overflow-y-auto">
+              {/* Stats Cards */}
+              <div className="p-4 space-y-3">
+                <motion.div 
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  {/* Total Keywords */}
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 shadow-md">
+                    <p className="text-[10px] font-semibold text-blue-100 uppercase tracking-wide mb-1">Total</p>
+                    <p className="text-2xl font-bold text-white">{usedKeywords.length}</p>
+                    <p className="text-[9px] text-blue-100 mt-0.5">Keywords</p>
+                  </div>
+
+                  {/* Fetched */}
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg p-3 shadow-md">
+                    <p className="text-[10px] font-semibold text-green-100 uppercase tracking-wide mb-1">Fetched</p>
+                    <p className="text-2xl font-bold text-white">{fetchedKeywords.length}</p>
+                    <p className="text-[9px] text-green-100 mt-0.5">AI Added</p>
+                  </div>
+ 
+                  {/* Contacts */}
+                  <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-3 shadow-md">
+                    <p className="text-[10px] font-semibold text-purple-100 uppercase tracking-wide mb-1">Contacts</p>
+                    <p className="text-2xl font-bold text-white">{fetchedContacts.length}</p>
+                    <p className="text-[9px] text-purple-100 mt-0.5">Found</p>
+                  </div>
+                </motion.div>
+              </div>
+
+              <Separator className="bg-gray-200 dark:bg-gray-800" />
+
+              {/* All Keywords Section */}
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+                className="flex-1 p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    All Keywords
+                  </h3>
+                  <Badge variant="outline" className="text-xs font-semibold bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400">
+                    {usedKeywords.length} total
+                  </Badge>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                  <Input
+                    placeholder="Search keywords..."
+                    className="pl-9 h-8 text-xs border-gray-300 dark:border-gray-700 rounded-lg"
+                  />
+                </div>
+                
+                <ScrollArea className="h-[200px] rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-white dark:bg-gray-950 shadow-sm">
+                  {usedKeywords.length === 0 ? (
+                    <div className="flex items-center justify-center h-full text-xs text-muted-foreground">
+                      No keywords yet. Add some to get started.
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5">
+                      {usedKeywords.map((keyword, index) => {
+                        const isAdded = !fetchedKeywords.includes(keyword);
+                        const isFetched = fetchedKeywords.includes(keyword);
+                        
+                        return (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.02 }}
+                            className={`group relative inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border shadow-sm transition-all hover:shadow-md ${
+                              isFetched 
+                                ? 'bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-800 text-green-700 dark:text-green-400'
+                                : 'bg-blue-50 dark:bg-blue-950/30 border-blue-300 dark:border-blue-800 text-blue-700 dark:text-blue-400'
+                            }`}
+                          >
+                            <span className="text-xs font-medium">{keyword}</span>
+                            <button
+                              onClick={() => handleRemoveKeyword(keyword)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-600 dark:hover:text-red-400"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </ScrollArea>
+              </motion.div>
+
+              <Separator className="bg-gray-200 dark:bg-gray-800" />
+
+              {/* Suggested Keywords Section */}
+              <motion.div 
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.3, delay: 0.2 }}
+                className="flex-1 p-4 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-purple-500"></div>
+                    Suggested Keywords
+                  </h3>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 text-xs text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300"
+                    onClick={() => {
+                      suggestedKeywords.forEach(kw => {
+                        if (!usedKeywords.includes(kw)) {
+                          handleAddSuggestedKeyword(kw);
+                        }
+                      });
+                    }}
+                  >
+                    Add All
+                  </Button>
+                </div>
+                
+                <ScrollArea className="h-[200px] rounded-lg border border-gray-200 dark:border-gray-800 p-3 bg-white dark:bg-gray-950 shadow-sm">
+                  <div className="flex flex-wrap gap-1.5">
+                    {suggestedKeywords.map((keyword, index) => (
+                      <motion.button
                         key={index}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="group relative flex items-center justify-between hover:bg-primary/10 rounded-lg px-3 py-2 border border-border/50 bg-background transition-all hover:shadow-sm"
+                        transition={{ delay: index * 0.04 }}
+                        onClick={() => handleAddSuggestedKeyword(keyword)}
+                        disabled={usedKeywords.includes(keyword)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all shadow-sm hover:shadow-md ${
+                          usedKeywords.includes(keyword)
+                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed border border-gray-200 dark:border-gray-700'
+                            : 'bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 border border-purple-300 dark:border-purple-800 cursor-pointer'
+                        }`}
                       >
-                        <span className="text-xs font-medium flex items-center gap-1.5 truncate">
-                          <div className="h-1.5 w-1.5 rounded-full bg-green-500 flex-shrink-0"></div>
-                          {keyword}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10 hover:text-red-600 flex-shrink-0"
-                          onClick={() => handleRemoveKeyword(keyword)}
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </motion.div>
+                        {usedKeywords.includes(keyword) ? (
+                          <Check className="w-3 h-3" />
+                        ) : (
+                          <span className="text-xs font-bold">+</span>
+                        )}
+                        {keyword}
+                      </motion.button>
                     ))}
                   </div>
                 </ScrollArea>
-              </div>
+              </motion.div>
+            </div>
+          </div>
 
-              {/* Performance Stats */}
-              <div>
-                <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-orange-500"></div>
-                  Performance
-                </h4>
-                <div className="space-y-3 rounded-xl border-2 border-border p-4 bg-gradient-to-br from-orange-50/50 to-yellow-50/50 dark:from-orange-950/20 dark:to-yellow-950/20">
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex items-center justify-between py-2 border-b border-border/50"
-                  >
-                    <span className="text-sm text-muted-foreground font-medium">Total Keywords</span>
-                    <span className="font-bold text-lg text-orange-600 dark:text-orange-400">{usedKeywords.length}</span>
-                  </motion.div>
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="flex items-center justify-between py-2 border-b border-border/50"
-                  >
-                    <span className="text-sm text-muted-foreground font-medium">Last Updated</span>
-                    <span className="font-semibold text-sm">2h ago</span>
-                  </motion.div>
-                  <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4 }}
-                    className="flex items-center justify-between py-2"
-                  >
-                    <span className="text-sm text-muted-foreground font-medium">Avg Response</span>
-                    <span className="font-bold text-green-600 dark:text-green-400 flex items-center gap-1.5">
-                      <TrendingUp className="w-4 h-4" />
-                      12.5%
-                    </span>
-                  </motion.div>
-                </div>
+          {/* Bottom Toolbar */}
+          <div className="px-6 py-3 border-t border-gray-200 dark:border-gray-800 bg-gradient-to-r from-gray-50 to-white dark:from-gray-900 dark:to-gray-950">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-400">
+                  <Check className="w-3 h-3 mr-1" />
+                  Ready
+                </Badge>
+                <span>Last fetch: {fetchedKeywords.length > 0 ? 'Just now' : 'Not yet'}</span>
               </div>
-            </motion.div>
+              
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-gray-300 dark:border-gray-700"
+                  onClick={() => setUsedKeywords([])}
+                >
+                  <X className="w-3 h-3 mr-1.5" />
+                  Clear All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs border-gray-300 dark:border-gray-700"
+                  disabled={fetchedContacts.length === 0}
+                >
+                  <Download className="w-3 h-3 mr-1.5" />
+                  Export Contacts
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-8 text-xs bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                  onClick={() => setIsKeywordsDialogOpen(false)}
+                >
+                  Done
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
