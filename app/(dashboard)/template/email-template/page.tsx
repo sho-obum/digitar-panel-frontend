@@ -394,7 +394,6 @@ export default function EmailTemplatePage() {
                     {getSortIcon("addedAt")}
                   </Button>
                 </TableHead>
-                <TableHead className="text-center w-[140px]">Assign To</TableHead>
                 <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-center w-[250px]">Action</TableHead>
               </TableRow>
@@ -403,7 +402,7 @@ export default function EmailTemplatePage() {
               {sortedTemplates.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={8}
                     className="text-center py-8 text-muted-foreground"
                   >
                     No templates found. Create your first email template!
@@ -429,19 +428,6 @@ export default function EmailTemplatePage() {
                     </TableCell>
                     <TableCell className="text-center">
                       {format(template.addedAt, "MMM dd, yyyy")}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Select defaultValue="initial">
-                        <SelectTrigger className="w-[120px] h-8 text-xs">
-                          <SelectValue placeholder="Assign" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="initial">Initial</SelectItem>
-                          <SelectItem value="followup-1">Follow-up 1</SelectItem>
-                          <SelectItem value="followup-2">Follow-up 2</SelectItem>
-                          <SelectItem value="followup-3">Follow-up 3</SelectItem>
-                        </SelectContent>
-                      </Select>
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge
@@ -514,47 +500,55 @@ export default function EmailTemplatePage() {
                               <span className="shimmer-effect absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full" />
                             </Button>
                           </ClickSpark>
-                          {template.isDefault ? (
-                            <ClickSpark
-                              sparkColor="#f59e0b"
-                              sparkSize={8}
-                              sparkRadius={20}
-                              sparkCount={6}
-                              duration={400}
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="btn-shimmer relative overflow-hidden flex items-center gap-1.5 h-9 px-4 transition-all duration-200 active:scale-95 bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-700 dark:text-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
-                                onClick={() => handleSetAsDefault(template.id)}
+                          {template.templateFor === "Initial" ? (
+                            template.isDefault ? (
+                              <ClickSpark
+                                sparkColor="#f59e0b"
+                                sparkSize={8}
+                                sparkRadius={20}
+                                sparkCount={6}
+                                duration={400}
                               >
-                                <Star className="h-3.5 w-3.5 fill-current transition-all duration-300 ease-in-out" />
-                                <span className="text-xs font-medium">
-                                  Default
-                                </span>
-                                <span className="shimmer-effect absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full" />
-                              </Button>
-                            </ClickSpark>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="btn-shimmer relative overflow-hidden flex items-center gap-1.5 h-9 px-4 transition-all duration-200 active:scale-95 bg-amber-500/20 hover:bg-amber-500/30 border-amber-500/50 text-amber-700 dark:text-amber-400 hover:shadow-lg hover:shadow-amber-500/20"
+                                  onClick={() => handleSetAsDefault(template.id)}
+                                >
+                                  <Star className="h-3.5 w-3.5 fill-current transition-all duration-300 ease-in-out" />
+                                  <span className="text-xs font-medium">
+                                    Default
+                                  </span>
+                                  <span className="shimmer-effect absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full" />
+                                </Button>
+                              </ClickSpark>
+                            ) : (
+                              <ClickSpark
+                                sparkColor="#f59e0b"
+                                sparkSize={8}
+                                sparkRadius={20}
+                                sparkCount={6}
+                                duration={400}
+                              >
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="btn-shimmer relative overflow-hidden flex items-center gap-1.5 h-9 px-4 transition-all duration-200 active:scale-95 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/20"
+                                  onClick={() => handleSetAsDefault(template.id)}
+                                >
+                                  <span className="text-xs font-medium">
+                                    Set Default
+                                  </span>
+                                  <span className="shimmer-effect absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full" />
+                                </Button>
+                              </ClickSpark>
+                            )
                           ) : (
-                            <ClickSpark
-                              sparkColor="#f59e0b"
-                              sparkSize={8}
-                              sparkRadius={20}
-                              sparkCount={6}
-                              duration={400}
-                            >
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="btn-shimmer relative overflow-hidden flex items-center gap-1.5 h-9 px-4 transition-all duration-200 active:scale-95 bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/30 text-amber-700 dark:text-amber-400 hover:border-amber-500/50 hover:shadow-lg hover:shadow-amber-500/20"
-                                onClick={() => handleSetAsDefault(template.id)}
-                              >
-                                <span className="text-xs font-medium">
-                                  Set Default
-                                </span>
-                                <span className="shimmer-effect absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full" />
-                              </Button>
-                            </ClickSpark>
+                            <div className="h-9 px-4 rounded-md bg-gray-400/20 dark:bg-gray-600/20 border border-gray-400/30 dark:border-gray-600/30 flex items-center justify-center cursor-not-allowed opacity-50">
+                              <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                                N/A
+                              </span>
+                            </div>
                           )}
                         </div>
 

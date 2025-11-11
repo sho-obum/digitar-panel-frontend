@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   Plus,
   Trash2,
   Edit,
@@ -63,6 +72,7 @@ import {
   XCircle,
   Circle,
   Send,
+  Eye,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -184,6 +194,15 @@ export default function ConfigTemplatePage() {
     generateMockCategories()
   );
 
+  // Mock email templates from email template page
+  const mockTemplates = [
+    { id: "1", name: "Welcome Email" },
+    { id: "2", name: "Password Reset" },
+    { id: "3", name: "Newsletter Q4" },
+    { id: "4", name: "Order Confirmation" },
+    { id: "5", name: "Account Verification" },
+  ];
+
   // Selected category for 3-column view (default to first category)
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null
@@ -193,6 +212,7 @@ export default function ConfigTemplatePage() {
   const [isEditCategoryOpen, setIsEditCategoryOpen] = useState(false);
   const [isDeleteCategoryOpen, setIsDeleteCategoryOpen] = useState(false);
   const [isStatusToggleOpen, setIsStatusToggleOpen] = useState(false);
+  const [isTimelineDrawerOpen, setIsTimelineDrawerOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] =
     useState<EmailCategory | null>(null);
   const [categoryToToggle, setCategoryToToggle] =
@@ -623,12 +643,12 @@ export default function ConfigTemplatePage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-[280px_1fr_380px] gap-4 h-full">
+        <div className="grid grid-cols-[200px_1fr] gap-4 h-full relative">
           {/* Column 1: Categories List */}
           <Card className="overflow-hidden flex flex-col">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Categories</CardTitle>
-              <CardDescription>Select a category to manage</CardDescription>
+              {/* <CardDescription>Select a category to manage</CardDescription> */}
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto p-0">
               <Table>
@@ -650,8 +670,10 @@ export default function ConfigTemplatePage() {
                     >
                       <TableCell>
                         <div className="flex items-center gap-2 justify-between pr-2">
-                          <span className={`font-medium ${selectedCategoryId === category.id ? 'text-blue-700 dark:text-blue-300' : ''}`}>
+                          <span className={`font-medium text-base whitespace-nowrap truncate ${selectedCategoryId === category.id ? 'text-blue-700 dark:text-blue-300' : ''}`}>
                             {category.name}
+
+                           
                           </span>
                           {/* <Badge
                             variant={
@@ -672,7 +694,9 @@ export default function ConfigTemplatePage() {
                             ) : (
                               <XCircle className="w-3 h-3" />
                             )}
+                      }
                             {category.isActive ? "Active" : "Inactive"}
+                            
                           </Badge> */}
                         </div>
                       </TableCell>
@@ -703,16 +727,19 @@ export default function ConfigTemplatePage() {
                       Add Follow-up
                     </Button>
                   </div>
-                  <div className="text-muted-foreground text-sm font-normal -mb-1">hi</div>
+                  {/* <div className="text-muted-foreground text-sm font-normal -mb-1">hi</div> */}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto">
+              <CardContent className="flex-1 overflow-y-auto -mt-1.25">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[140px]">Email</TableHead>
                       <TableHead className="text-center w-[140px]">
                         Days After
+                      </TableHead>
+                      <TableHead className="text-center w-[210px]">
+                        Template
                       </TableHead>
                       <TableHead className="text-center w-[120px]">
                         Status
@@ -747,6 +774,34 @@ export default function ConfigTemplatePage() {
                               {followUp.daysAfter === 1 ? 'day' : 'days'}
                             </span>
                           </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Select
+                            value={followUp.templateId || ""}
+                            onValueChange={(value) => {
+                              const updatedFollowUps = selectedCategory.followUps.map((fu) =>
+                                fu.id === followUp.id ? { ...fu, templateId: value || undefined } : fu
+                              );
+                              setCategories(
+                                categories.map((cat) =>
+                                  cat.id === selectedCategory.id
+                                    ? { ...cat, followUps: updatedFollowUps }
+                                    : cat
+                                )
+                              );
+                            }}
+                          >
+                            <SelectTrigger className="w-[190px] mx-auto text-sm whitespace-nowrap">
+                              <SelectValue placeholder="Select template" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {mockTemplates.map((template) => (
+                                <SelectItem key={template.id} value={template.id}>
+                                  {template.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell className="text-center">
                           <Select
@@ -802,25 +857,52 @@ export default function ConfigTemplatePage() {
               </CardContent>
             </Card>
           )}
+        </div>
+      )}
 
-          {/* Column 3: Timeline Roadmap */}
-          {selectedCategory ? (
-            <Card className="overflow-hidden flex flex-col border-t-4 border-t-transparent">
-              <CardHeader className="pb-3 ">
-                <CardTitle className="text-lg flex items-center gap-2">
+      {/* Animated Floating Timeline Tab & Drawer */}
+      <AnimatePresence>
+        {selectedCategory && (
+          <>
+            {/* Drawer Panel */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: isTimelineDrawerOpen ? 0 : "100%" }}
+              exit={{ x: "100%" }}
+              transition={{
+                type: "spring",
+                damping: 25,
+                stiffness: 200,
+              }}
+              className="fixed right-0 top-0 h-screen w-[320px] bg-white dark:bg-gray-950 shadow-2xl z-50 overflow-y-auto border-l border-gray-200 dark:border-gray-800"
+            >
+              {/* Close Button */}
+              <div className="sticky top-0 bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 p-4 flex items-center justify-between z-10">
+                <div className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  Email Sequence Timeline
-                </CardTitle>
-                <CardDescription>
-                  Visual representation of your email sequence
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 overflow-y-auto pl-8">
-                <div className="relative">
+                  <h2 className="font-semibold text-lg">Email Timeline</h2>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setIsTimelineDrawerOpen(false)}
+                  className="h-8 w-8"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              {/* Timeline Content */}
+              <div className="p-6">
+                <p className="text-sm text-muted-foreground mb-6">
+                  {selectedCategory.name}
+                </p>
+
+                <div className="relative pl-6">
                   {selectedCategory.followUps.map((followUp, index) => (
                     <div
                       key={followUp.id}
-                      className="relative flex items-start gap-6 pb-8 last:pb-0"
+                      className="relative pb-8 last:pb-0"
                     >
                       {/* Vertical Line */}
                       {index < selectedCategory.followUps.length - 1 && (
@@ -838,77 +920,84 @@ export default function ConfigTemplatePage() {
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 ml-6 group">
-                        <div className="flex items-start gap-4 p-3 rounded-lg bg-transparent hover:bg-accent/5 transition-all duration-200">
+                      <div className="ml-4">
+                        <div className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                           {/* Sequence Badge */}
-                          <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-muted text-muted-foreground font-bold text-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                            {followUp.sequence}
-                          </div>
-
-                          {/* Details */}
-                          <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              {/* Day Badge */}
-                              <div className="flex items-center gap-1.5 text-sm font-semibold">
-                                <Clock className="h-4 w-4 text-blue-500" />
-                                <span>Day {followUp.daysAfter}</span>
-                              </div>
-
-                              {/* Status Badge */}
-                              <Badge
-                                className={`${getFollowUpStatusColor(
-                                  followUp.status
-                                )} flex items-center gap-1`}
-                              >
-                                {getFollowUpStatusIcon(followUp.status)}
-                                {followUp.status}
-                              </Badge>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary text-primary-foreground font-bold text-xs">
+                              {followUp.sequence}
                             </div>
-
-                            {/* Description */}
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              {index === 0 ? (
-                                <>
-                                  <Mail className="inline h-3.5 w-3.5 mr-1.5 " />
-                                  <strong className="text-foreground">
-                                    Initial contact email
-                                  </strong>{" "} <br />
-                                  Sent immediately when campaign starts
-                                </>
-                              ) : (
-                                <>
-                                  <Mail className="inline h-3.5 w-3.5 mr-1.5" />
-                                  <strong className="text-foreground">
-                                    Follow-up {followUp.sequence - 1}
-                                  </strong>{" "}
-                                  <br />
-                                  {followUp.daysAfter === 1
-                                    ? " 1 day"
-                                    : ` ${followUp.daysAfter} days`}{" "}
-                                  after initial contact
-                                </>
-                              )}
-                            </p>
+                            
+                            {/* Day Badge */}
+                            <div className="flex items-center gap-1 text-xs font-semibold">
+                              <Clock className="h-3.5 w-3.5 text-blue-500" />
+                              <span>Day {followUp.daysAfter}</span>
+                            </div>
                           </div>
+
+                          {/* Status Badge */}
+                          <Badge
+                            className={`${getFollowUpStatusColor(
+                              followUp.status
+                            )} flex items-center gap-1 mb-2 w-fit text-xs`}
+                          >
+                            {getFollowUpStatusIcon(followUp.status)}
+                            {followUp.status}
+                          </Badge>
+
+                          {/* Description */}
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            {index === 0 ? (
+                              <>
+                                <strong className="text-foreground">
+                                  Initial email
+                                </strong>
+                                <br />
+                                Sent immediately when campaign starts
+                              </>
+                            ) : (
+                              <>
+                                <strong className="text-foreground">
+                                  Follow-up {followUp.sequence - 1}
+                                </strong>
+                                <br />
+                                {followUp.daysAfter === 1
+                                  ? "1 day"
+                                  : `${followUp.daysAfter} days`}{" "}
+                                after initial contact
+                              </>
+                            )}
+                          </p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="flex items-center justify-center">
-              <CardContent className="text-center py-12">
-                <Calendar className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">
-                  Select a category to view timeline
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+              </div>
+            </motion.div>
+
+            {/* Floating Vertical Tab Button */}
+            <motion.button
+              initial={{ x: 0 }}
+              animate={{ x: isTimelineDrawerOpen ? 320 : 0 }}
+              transition={{
+                type: "spring",
+                damping: 25,
+                stiffness: 200,
+              }}
+              onClick={() => setIsTimelineDrawerOpen(!isTimelineDrawerOpen)}
+              className="fixed right-0 top-1/2 -translate-y-1/2 z-50 flex flex-col items-center justify-center h-38 w-10 bg-black text-white shadow-2xl rounded-l-xl transition-colors group"
+            >
+              <div className="flex flex-col items-center gap-8">
+                {/* <Calendar className="h-5 w-5 -rotate-90 flex-shrink-0" /> */}
+                <span className="text-xs font-semibold -rotate-90 whitespace-nowrap flex-shrink-0">
+                  View Email Template
+                </span>
+              </div>
+            </motion.button>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Create Category Dialog */}
       <Dialog
