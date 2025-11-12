@@ -10,6 +10,7 @@ import {
   PieChart,
   Settings2,
   SquareTerminal,
+  Users,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -131,6 +132,11 @@ const data = {
       name: "Settings",
       url: "/settings",
       icon: Settings2,
+    },
+    {
+      name: "Team Management",
+      url: "/admin-teammanagement",
+      icon: Users,
     },
    
   ],
