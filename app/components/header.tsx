@@ -23,6 +23,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useTheme } from "next-themes"
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 interface HeaderProps {
   breadcrumbs?: {
@@ -36,6 +37,7 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
   const { theme, setTheme } = useTheme()
   const [notifications, setNotifications] = useState(3) // Example notification count
   const { data: session } = useSession();
+  const router = useRouter();
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
@@ -114,7 +116,7 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
                 <p className="text-xs text-muted-foreground">{ session?.user?.email ?? "guestuser@example.com"}</p>
               </div>
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/profile')}>
               <span className="cursor-pointer">Profile Settings</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
