@@ -449,75 +449,95 @@ export default function Page() {
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground">{getDateSubtext()}</p>
         </div>
-        <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className="bg-transparent border border-border rounded-lg px-4 py-2 text-foreground font-medium min-w-[200px] justify-between hover:border-muted-foreground transition-colors"
+        <div className="flex gap-2">
+          <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="bg-transparent border border-border rounded-lg px-4 py-2 text-foreground font-medium min-w-[200px] justify-between hover:border-muted-foreground transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  {getDateRangeText()}
+                </div>
+                {isPopoverOpen ? (
+                  <CalendarDays className="h-4 w-4 rotate-180 text-foreground" />
+                ) : (
+                  <CalendarDays className="h-4 w-4 rotate-90 text-muted-foreground" />
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-0 bg-background rounded-xl shadow-xl border border-border"
+              align="end"
             >
-              <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4" />
-                {getDateRangeText()}
-              </div>
-              {isPopoverOpen ? (
-                <CalendarDays className="h-4 w-4 rotate-180 text-foreground" />
-              ) : (
-                <CalendarDays className="h-4 w-4 rotate-90 text-muted-foreground" />
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            className="w-auto p-0 bg-background rounded-xl shadow-xl border border-border"
-            align="end"
-          >
-            <div className="flex">
-              {/* Presets  */}
-              <div className="border-r border-border p-3 max-w-[160px]">
-                <div className="space-y-1">
-                  {datePresets.map((preset) => (
-                    <Button
-                      key={preset.id}
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const range = preset.getValue();
+              <div className="flex">
+                {/* Presets  */}
+                <div className="border-r border-border p-3 max-w-[160px]">
+                  <div className="space-y-1">
+                    {datePresets.map((preset) => (
+                      <Button
+                        key={preset.id}
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const range = preset.getValue();
+                          setDateRange({
+                            from: range.from,
+                            to: range.to,
+                            preset: preset.id,
+                          });
+                        }}
+                        className={`w-full justify-start text-right h-8 px-2 text-xs transition-all duration-200 ${
+                          dateRange.preset === preset.id
+                            ? "bg-foreground text-background font-medium"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                        }`}
+                      >
+                        {preset.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                {/* Calendar */}
+                <div className="p-4">
+                  <Calendar
+                    mode="range"
+                    selected={{ from: dateRange.from, to: dateRange.to }}
+                    onSelect={(range) => {
+                      if (range?.from) {
                         setDateRange({
                           from: range.from,
-                          to: range.to,
-                          preset: preset.id,
+                          to: range.to || range.from,
+                          preset: "custom",
                         });
-                      }}
-                      className={`w-full justify-start text-right h-8 px-2 text-xs transition-all duration-200 ${
-                        dateRange.preset === preset.id
-                          ? "bg-foreground text-background font-medium"
-                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                      }`}
-                    >
-                      {preset.label}
-                    </Button>
-                  ))}
+                      }
+                    }}
+                    numberOfMonths={2}
+                  />
                 </div>
               </div>
-              {/* Calendar */}
-              <div className="p-4">
-                <Calendar
-                  mode="range"
-                  selected={{ from: dateRange.from, to: dateRange.to }}
-                  onSelect={(range) => {
-                    if (range?.from) {
-                      setDateRange({
-                        from: range.from,
-                        to: range.to || range.from,
-                        preset: "custom",
-                      });
-                    }
-                  }}
-                  numberOfMonths={2}
-                />
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+            </PopoverContent>
+          </Popover>
+          
+          {/* Reset Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-auto px-3 py-2 text-xs font-medium hover:bg-muted"
+            onClick={() => {
+              const today = new Date();
+              setDateRange({
+                from: subDays(today, 7),
+                to: today,
+                preset: "last7days",
+              });
+            }}
+            title="Reset to default (Last 7 days)"
+          >
+            Reset
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards Row */}
