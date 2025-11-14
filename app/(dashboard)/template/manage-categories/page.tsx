@@ -99,7 +99,7 @@ const generateMockCategories = async (): Promise<Category[]> => {
       name: cat.cat_name,
       description: cat.description,
       isActive: cat.is_active ?? false,
-      default : cat.default_cat === 1 ? true : false,
+      default: cat.default_cat === 1 ? true : false,
       totalEmails: cat.total_emails ?? cat.totalEmails ?? 0,
       createdAt: new Date(cat.created_at ?? cat.createdAt),
       updatedAt: new Date(cat.updated_at ?? cat.updatedAt),
@@ -114,7 +114,7 @@ const generateMockCategories = async (): Promise<Category[]> => {
 
 export default function ManageCategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const hasFetched = useRef(false); 
+  const hasFetched = useRef(false);
 
   if (!hasFetched.current) {
     hasFetched.current = true;
@@ -166,7 +166,7 @@ export default function ManageCategoriesPage() {
 
   // Filter and sort categories
   const sortedCategories = useMemo(() => {
-    if (!Array.isArray(categories)) return []; 
+    if (!Array.isArray(categories)) return [];
     let filtered = categories.filter((cat) =>
       cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cat.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -194,13 +194,13 @@ export default function ManageCategoriesPage() {
             ? (aValue as boolean) === (bValue as boolean)
               ? 0
               : (aValue as boolean)
-              ? 1
-              : -1
+                ? 1
+                : -1
             : (aValue as boolean) === (bValue as boolean)
-            ? 0
-            : (aValue as boolean)
-            ? -1
-            : 1;
+              ? 0
+              : (aValue as boolean)
+                ? -1
+                : 1;
         }
 
         return sortConfig.direction === "asc"
@@ -263,7 +263,7 @@ export default function ManageCategoriesPage() {
         description: json.category.description,
         isActive: json.category.isActive,
         totalEmails: 0,
-        default:false,
+        default: false,
         createdAt: new Date(json.category.createdAt),
         updatedAt: new Date(json.category.updatedAt),
       };
@@ -282,60 +282,60 @@ export default function ManageCategoriesPage() {
 
 
   // Edit category
-const handleEditCategory = async () => {
-  if (!categoryToEdit || !validateForm()) {
-    toast.error("Please fix the validation errors");
-    return;
-  }
-
-  setIsLoading(true);
-
-  try {
-    const res = await fetch(`/api/templates/email/categories/${categoryToEdit.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: formData.name,
-        description: formData.description,
-      }),
-    });
-
-    const json = await res.json();
-
-    if (!res.ok) {
-      toast.error(json.error || "Failed to update category");
+  const handleEditCategory = async () => {
+    if (!categoryToEdit || !validateForm()) {
+      toast.error("Please fix the validation errors");
       return;
     }
 
-    // ✅ Update state on success
-    setCategories(
-      categories.map((cat) =>
-        cat.id === categoryToEdit.id
-          ? {
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`/api/templates/email/categories/${categoryToEdit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.error(json.error || "Failed to update category");
+        return;
+      }
+
+      // ✅ Update state on success
+      setCategories(
+        categories.map((cat) =>
+          cat.id === categoryToEdit.id
+            ? {
               ...cat,
               name: json.category?.name || formData.name,
               description: json.category?.description || formData.description,
               updatedAt: new Date(json.category?.updatedAt || Date.now()),
             }
-          : cat
-      )
-    );
+            : cat
+        )
+      );
 
-    toast.success("Category updated successfully!", {
-      description: `"${formData.name}" has been updated.`,
-    });
+      toast.success("Category updated successfully!", {
+        description: `"${formData.name}" has been updated.`,
+      });
 
-  } catch (err) {
-    console.error("Edit category error:", err);
-    toast.error("Network error — please try again later");
-  } finally {
-    setIsLoading(false);
-    setIsEditOpen(false);
-    setCategoryToEdit(null);
-    setFormData({ name: "", description: "" });
-    setFormErrors({ name: "", description: "" });
-  }
-};
+    } catch (err) {
+      console.error("Edit category error:", err);
+      toast.error("Network error — please try again later");
+    } finally {
+      setIsLoading(false);
+      setIsEditOpen(false);
+      setCategoryToEdit(null);
+      setFormData({ name: "", description: "" });
+      setFormErrors({ name: "", description: "" });
+    }
+  };
   // Delete category
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
@@ -421,8 +421,11 @@ const handleEditCategory = async () => {
         )
       );
 
+      const message =
+        error instanceof Error ? error.message : "Something went wrong";
+
       toast.error("Failed to update category", {
-        description: error.message,
+        description: message,
       });
     }
 
@@ -568,11 +571,10 @@ const handleEditCategory = async () => {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge
-                          className={`cursor-pointer transition-all ${
-                            category.isActive
+                          className={`cursor-pointer transition-all ${category.isActive
                               ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900"
                               : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
-                          } flex items-center gap-1 justify-center w-fit mx-auto`}
+                            } flex items-center gap-1 justify-center w-fit mx-auto`}
                           onClick={() => {
                             if (category.default) return;
                             setCategoryToToggle(category);
@@ -609,24 +611,24 @@ const handleEditCategory = async () => {
                               });
                               setIsEditOpen(true);
                             }}
-                            disabled={category.default} 
+                            disabled={category.default}
                             className={`${category.default
-                                ? "opacity-40 pointer-events-none blur-[1px] cursor-not-allowed" 
-                                : "hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
+                              ? "opacity-40 pointer-events-none blur-[1px] cursor-not-allowed"
+                              : "hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
                               }`}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button variant="outline" size="sm"
                             onClick={() => {
-                              if (category.default) return; 
+                              if (category.default) return;
                               setCategoryToDelete(category);
                               setIsDeleteOpen(true);
                             }}
-                            disabled={category.default} 
+                            disabled={category.default}
                             className={`${category.default
-                                ? "opacity-40 pointer-events-none blur-[1px] cursor-not-allowed" 
-                                : "hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
+                              ? "opacity-40 pointer-events-none blur-[1px] cursor-not-allowed"
+                              : "hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
                               }`}
                           >
                             <Trash2 className="h-4 w-4" />
