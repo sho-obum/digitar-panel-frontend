@@ -213,6 +213,8 @@ export default function ConfigTemplatePage() {
   const [isDeleteCategoryOpen, setIsDeleteCategoryOpen] = useState(false);
   const [isStatusToggleOpen, setIsStatusToggleOpen] = useState(false);
   const [isTimelineDrawerOpen, setIsTimelineDrawerOpen] = useState(false);
+  const [isTemplatePreviewOpen, setIsTemplatePreviewOpen] = useState(false);
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
   const [categoryToDelete, setCategoryToDelete] =
     useState<EmailCategory | null>(null);
   const [categoryToToggle, setCategoryToToggle] =
@@ -565,6 +567,125 @@ export default function ConfigTemplatePage() {
     setSelectedCategoryId(categoryId);
   };
 
+  // Handle template preview
+  const handleViewTemplate = (templateId: string) => {
+    setPreviewTemplateId(templateId);
+    setIsTemplatePreviewOpen(true);
+  };
+
+  // Get template details for preview
+  const getTemplateDetails = (templateId: string) => {
+    const template = mockTemplates.find(t => t.id === templateId);
+    
+    // Mock template content - in real app, fetch from API
+    const mockContent = {
+      "1": {
+        subject: "Welcome to {companyName}!",
+        body: `Hi {firstName},
+
+Thank you for signing up with {companyName}! We're excited to have you on board.
+
+Here's what you can expect:
+• Personalized onboarding experience
+• 24/7 customer support
+• Access to exclusive features
+
+Ready to get started? Click the button below:
+{ctaButton}
+
+Best regards,
+The {companyName} Team`,
+        category: "Onboarding",
+        lastModified: "2 days ago",
+        usageCount: 145
+      },
+      "2": {
+        subject: "Reset Your Password - {companyName}",
+        body: `Hi {firstName},
+
+We received a request to reset your password for your {companyName} account.
+
+Click the link below to create a new password:
+{resetLink}
+
+This link will expire in 24 hours.
+
+If you didn't request this, please ignore this email.
+
+Best regards,
+The {companyName} Team`,
+        category: "Security",
+        lastModified: "1 week ago",
+        usageCount: 89
+      },
+      "3": {
+        subject: "Your Q4 Newsletter from {companyName}",
+        body: `Hi {firstName},
+
+Here's what's new this quarter at {companyName}:
+
+🎉 New Features Launched
+📊 Performance Updates
+🎯 Upcoming Events
+
+Read more in our full newsletter:
+{newsletterLink}
+
+Stay connected,
+The {companyName} Team`,
+        category: "Marketing",
+        lastModified: "3 days ago",
+        usageCount: 234
+      },
+      "4": {
+        subject: "Order Confirmation #{orderNumber}",
+        body: `Hi {firstName},
+
+Thank you for your order! We're processing it now.
+
+Order Details:
+• Order Number: {orderNumber}
+• Total: {orderTotal}
+• Estimated Delivery: {deliveryDate}
+
+Track your order:
+{trackingLink}
+
+Questions? Contact us anytime.
+
+Best regards,
+The {companyName} Team`,
+        category: "Transactional",
+        lastModified: "5 days ago",
+        usageCount: 567
+      },
+      "5": {
+        subject: "Verify Your Email - {companyName}",
+        body: `Hi {firstName},
+
+Please verify your email address to complete your registration.
+
+Click the button below to verify:
+{verifyButton}
+
+This verification link expires in 48 hours.
+
+Welcome to {companyName}!
+
+Best regards,
+The {companyName} Team`,
+        category: "Onboarding",
+        lastModified: "1 day ago",
+        usageCount: 412
+      }
+    };
+
+    return {
+      name: template?.name || "Unknown Template",
+      ...mockContent[templateId as keyof typeof mockContent]
+    };
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-6 mt-3">
       {/* Header Row */}
@@ -776,32 +897,47 @@ export default function ConfigTemplatePage() {
                           </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Select
-                            value={followUp.templateId || ""}
-                            onValueChange={(value) => {
-                              const updatedFollowUps = selectedCategory.followUps.map((fu) =>
-                                fu.id === followUp.id ? { ...fu, templateId: value || undefined } : fu
-                              );
-                              setCategories(
-                                categories.map((cat) =>
-                                  cat.id === selectedCategory.id
-                                    ? { ...cat, followUps: updatedFollowUps }
-                                    : cat
-                                )
-                              );
-                            }}
-                          >
-                            <SelectTrigger className="w-[190px] mx-auto text-sm whitespace-nowrap">
-                              <SelectValue placeholder="Select template" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mockTemplates.map((template) => (
-                                <SelectItem key={template.id} value={template.id}>
-                                  {template.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center justify-center gap-2">
+                            <Select
+                              value={followUp.templateId || ""}
+                              onValueChange={(value) => {
+                                const updatedFollowUps = selectedCategory.followUps.map((fu) =>
+                                  fu.id === followUp.id ? { ...fu, templateId: value || undefined } : fu
+                                );
+                                setCategories(
+                                  categories.map((cat) =>
+                                    cat.id === selectedCategory.id
+                                      ? { ...cat, followUps: updatedFollowUps }
+                                      : cat
+                                  )
+                                );
+                              }}
+                            >
+                              <SelectTrigger className="w-[150px] text-sm whitespace-nowrap">
+                                <SelectValue placeholder="Select template" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {mockTemplates.map((template) => (
+                                  <SelectItem key={template.id} value={template.id}>
+                                    {template.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            
+                            {/* View Template Button */}
+                            {followUp.templateId && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewTemplate(followUp.templateId!)}
+                                className="h-8 w-8 p-0 hover:bg-blue-50 dark:hover:bg-blue-950"
+                                title="Preview template"
+                              >
+                                <Eye className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <Select
@@ -1270,6 +1406,153 @@ export default function ConfigTemplatePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template Preview Dialog */}
+      <Dialog open={isTemplatePreviewOpen} onOpenChange={setIsTemplatePreviewOpen}>
+        <DialogContent className="sm:max-w-[700px] max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">
+                    {previewTemplateId && getTemplateDetails(previewTemplateId).name}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Preview how this template will appear
+                  </DialogDescription>
+                </div>
+              </div>
+              <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-400">
+                {previewTemplateId && getTemplateDetails(previewTemplateId).category}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-4 py-4">
+            {previewTemplateId && (
+              <>
+                {/* Template Metadata */}
+                <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Modified {getTemplateDetails(previewTemplateId).lastModified}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Send className="h-4 w-4" />
+                    <span>Used in {getTemplateDetails(previewTemplateId).usageCount} campaigns</span>
+                  </div>
+                </div>
+
+                {/* Subject Line */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-foreground">Subject Line</Label>
+                  <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800">
+                    <code className="text-sm text-foreground">
+                      {getTemplateDetails(previewTemplateId).subject.split(/(\{[^}]+\})/).map((part, i) => 
+                        part.match(/\{[^}]+\}/) ? (
+                          <span key={i} className="bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono">
+                            {part}
+                          </span>
+                        ) : (
+                          <span key={i}>{part}</span>
+                        )
+                      )}
+                    </code>
+                  </div>
+                </div>
+
+                {/* Email Body */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-foreground">Email Body</Label>
+                  <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 max-h-[300px] overflow-y-auto">
+                    <pre className="text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed">
+                      {getTemplateDetails(previewTemplateId).body.split(/(\{[^}]+\})/).map((part, i) => 
+                        part.match(/\{[^}]+\}/) ? (
+                          <span key={i} className="bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono font-semibold">
+                            {part}
+                          </span>
+                        ) : (
+                          <span key={i}>{part}</span>
+                        )
+                      )}
+                    </pre>
+                  </div>
+                </div>
+
+                {/* Sample Preview */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Eye className="h-4 w-4" />
+                    Preview with Sample Data
+                  </Label>
+                  <div className="p-4 bg-white dark:bg-gray-950 rounded-lg border-2 border-blue-200 dark:border-blue-800 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="pb-2 border-b border-gray-200 dark:border-gray-800">
+                        <p className="text-sm font-semibold text-foreground">
+                          {getTemplateDetails(previewTemplateId).subject
+                            .replace('{companyName}', 'Acme Corporation')
+                            .replace('{orderNumber}', '#12345')
+                          }
+                        </p>
+                      </div>
+                      <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                        {getTemplateDetails(previewTemplateId).body
+                          .replace(/{firstName}/g, 'John')
+                          .replace(/{companyName}/g, 'Acme Corporation')
+                          .replace(/{orderNumber}/g, '#12345')
+                          .replace(/{orderTotal}/g, '$299.99')
+                          .replace(/{deliveryDate}/g, 'November 20, 2025')
+                          .replace(/{ctaButton}/g, '🔗 [Get Started Now]')
+                          .replace(/{resetLink}/g, '🔗 [Reset Password]')
+                          .replace(/{newsletterLink}/g, '🔗 [Read Full Newsletter]')
+                          .replace(/{trackingLink}/g, '🔗 [Track Order]')
+                          .replace(/{verifyButton}/g, '🔗 [Verify Email Address]')
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Variables Reference */}
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mb-2">
+                    💡 Available Variables
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(new Set(getTemplateDetails(previewTemplateId).body.match(/\{[^}]+\}/g) || [])).map((variable, i) => (
+                      <code key={i} className="text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-mono">
+                        {variable}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="border-t pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsTemplatePreviewOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                setIsTemplatePreviewOpen(false);
+                toast.info("Redirect krna hai yahn se");
+              }}
+              className="bg-black text-white hover:bg-gray-800"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

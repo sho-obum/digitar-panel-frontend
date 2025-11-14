@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,14 +66,22 @@ import {
   Users,
   Download,
   Search,
+  ChevronDown,
 } from "lucide-react";
 import { FiEdit2, FiTrash2, FiEye, FiBarChart2 } from "react-icons/fi";
 import { MdOutlineStorefront } from "react-icons/md";
 import { Toggle } from "@/components/ui/toggle";
-import { format } from "date-fns";
+import { format, startOfMonth, endOfMonth, subMonths, subDays } from "date-fns";
 import { motion } from "framer-motion";
 import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import { FaLinkedin } from "react-icons/fa";
+import { CalendarDays } from "lucide-react";
+import { Calendar } from "@/components/calendar-with-presets";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 /* Lottie Loader */
 function LottieLoader({ size = 42 }: { size?: number }) {
@@ -436,15 +445,189 @@ export default function AllCampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>(
     generateMockCampaigns()
   );
+  
+  // autofill filter values
+  const [pendingSearchQuery, setPendingSearchQuery] = useState("");
+  const [pendingSelectedCategories, setPendingSelectedCategories] = useState<string[]>([]);
+  const [pendingSelectedStages, setPendingSelectedStages] = useState<string[]>([]);
+  const [pendingDateRange, setPendingDateRange] = useState(() => {
+    const today = new Date();
+    return {
+      from: subDays(today, 7),
+      to: today,
+      preset: "last7days",
+    };
+  });
+  
+  // Active filter values (used for filtering, only updated on Apply)
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [selectedStage, setSelectedStage] = useState<string>("");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedStages, setSelectedStages] = useState<string[]>([]);
+  const [dateRange, setDateRange] = useState(() => {
+    const today = new Date();
+    return {
+      from: subDays(today, 7),
+      to: today,
+      preset: "last7days",
+    };
+  });
+  
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [isSearchDropdownOpen, setIsSearchDropdownOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({
     key: null,
     direction: "asc",
   });
+  
+  // Debounced search query for autocomplete
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  
+  // waits 300ms after user type nahi krta hai
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(pendingSearchQuery);
+    }, 300); 
+    
+    return () => clearTimeout(timer); // Cleanup
+  }, [pendingSearchQuery]);
+
+  // auto suggest + deboucnce
+  const searchSuggestions = useMemo(() => {
+    // Require at least 3 characters 
+    if (!debouncedSearchQuery.trim() || debouncedSearchQuery.trim().length < 3) {
+      return [];
+    }
+    
+    const query = debouncedSearchQuery.toLowerCase();
+    const suggestions = campaigns
+      .filter(campaign => 
+        campaign.appName.toLowerCase().includes(query) || 
+        campaign.companyName.toLowerCase().includes(query)
+      )
+      .slice(0, 8) // Limit to 8 suggestions
+      .map(campaign => ({
+        id: campaign.id,
+        appName: campaign.appName,
+        companyName: campaign.companyName,
+      }));
+    
+    return suggestions;
+  }, [debouncedSearchQuery, campaigns]);
+  
+  // Handle Apply button click
+  const handleApplyFilters = () => {
+    setSearchQuery(pendingSearchQuery);
+    setSelectedCategories(pendingSelectedCategories);
+    setSelectedStages(pendingSelectedStages);
+    setDateRange(pendingDateRange);
+    setIsPopoverOpen(false);
+  };
+  
+  // Handle Reset button click
+  const handleResetFilters = () => {
+    const today = new Date();
+    const defaultRange = {
+      from: subDays(today, 7),
+      to: today,
+      preset: "last7days",
+    };
+    setPendingSearchQuery("");
+    setPendingSelectedCategories([]);
+    setPendingSelectedStages([]);
+    setPendingDateRange(defaultRange);
+    // Also reset active filters
+    setSearchQuery("");
+    setSelectedCategories([]);
+    setSelectedStages([]);
+    setDateRange(defaultRange);
+  };
+
+  // Helper functions for removing individual filters
+  const removeCategory = (category: string) => {
+    const updated = pendingSelectedCategories.filter(c => c !== category);
+    setPendingSelectedCategories(updated);
+    setSelectedCategories(updated);
+  };
+
+  const removeStage = (stage: string) => {
+    const updated = pendingSelectedStages.filter(s => s !== stage);
+    setPendingSelectedStages(updated);
+    setSelectedStages(updated);
+  };
+
+  const clearSearchFilter = () => {
+    setPendingSearchQuery("");
+    setSearchQuery("");
+  };
+
+  const datePresets = [
+    {
+      id: "today",
+      label: "Today",
+      getValue: () => {
+        const today = new Date();
+        return { from: today, to: today };
+      },
+    },
+    {
+      id: "yesterday",
+      label: "Yesterday",
+      getValue: () => {
+        const yesterday = subDays(new Date(), 1);
+        return { from: yesterday, to: yesterday };
+      },
+    },
+    {
+      id: "last7days",
+      label: "Last 7 days",
+      getValue: () => ({
+        from: subDays(new Date(), 7),
+        to: new Date(),
+      }),
+    },
+    {
+      id: "last30days",
+      label: "Last 30 days",
+      getValue: () => ({
+        from: subDays(new Date(), 30),
+        to: new Date(),
+      }),
+    },
+    {
+      id: "thisMonth",
+      label: "This month",
+      getValue: () => ({
+        from: startOfMonth(new Date()),
+        to: endOfMonth(new Date()),
+      }),
+    },
+    {
+      id: "lastMonth",
+      label: "Last month",
+      getValue: () => {
+        const lastMonth = subMonths(new Date(), 1);
+        return {
+          from: startOfMonth(lastMonth),
+          to: endOfMonth(lastMonth),
+        };
+      },
+    },
+  ];
+
+  const getDateRangeText = () => {
+    if (!dateRange.from) return "Select date range";
+    if (dateRange.preset && dateRange.preset !== "custom") {
+      const preset = datePresets.find((p) => p.id === dateRange.preset);
+      return preset?.label || "Custom range";
+    }
+    if (dateRange.from && dateRange.to) {
+      return `${format(dateRange.from, "MMM dd")} - ${format(
+        dateRange.to,
+        "MMM dd"
+      )}`;
+    }
+    return format(dateRange.from, "MMM dd, yyyy");
+  };
 
   // Dialog states
   const [isLogsDialogOpen, setIsLogsDialogOpen] = useState(false);
@@ -480,9 +663,9 @@ export default function AllCampaignsPage() {
         campaign.appName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         campaign.companyName.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory =
-        selectedCategory === "all" || !selectedCategory || campaign.category === selectedCategory;
+        selectedCategories.length === 0 || selectedCategories.includes(campaign.category);
       const matchesStage =
-        selectedStage === "all" || !selectedStage || campaign.approachStage === selectedStage;
+        selectedStages.length === 0 || selectedStages.includes(campaign.approachStage);
 
       return matchesSearch && matchesCategory && matchesStage;
     });
@@ -509,7 +692,7 @@ export default function AllCampaignsPage() {
     }
 
     return filtered;
-  }, [campaigns, searchQuery, selectedCategory, selectedStage, sortConfig]);
+  }, [campaigns, searchQuery, selectedCategories, selectedStages, sortConfig]);
 
   const handleSort = (key: keyof Campaign) => {
     let direction: "asc" | "desc" = "asc";
@@ -531,16 +714,23 @@ export default function AllCampaignsPage() {
   };
 
   const toggleSendPermission = (campaignId: string) => {
+    const campaign = campaigns.find(c => c.id === campaignId);
+    const newStatus = !campaign?.sendPermission;
     setCampaigns(
       campaigns.map((c) =>
-        c.id === campaignId ? { ...c, sendPermission: !c.sendPermission } : c
+        c.id === campaignId ? { ...c, sendPermission: newStatus } : c
       )
     );
+    toast.success(newStatus ? "Send permission enabled" : "Send permission disabled", {
+      duration: 2000,
+    });
   };
 
   const handleCopyUrl = (url: string) => {
     navigator.clipboard.writeText(url);
-    // TODO: Show toast notification
+    toast.success("URL copied to clipboard!", {
+      duration: 2000,
+    });
   };
 
   const handleViewLogs = (campaign: Campaign) => {
@@ -682,7 +872,7 @@ export default function AllCampaignsPage() {
   }, [filteredLogs]);
 
   return (
-    <div className="flex flex-1 flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 w-full">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
@@ -694,99 +884,330 @@ export default function AllCampaignsPage() {
       </div>
 
       {/* Filters Card */}
-      <Card className="bg-gradient-to-br from-background to-muted/20 border-border/50">
-        <CardHeader>
+      <Card className="bg-gradient-to-br from-background to-muted/20 border-border/50 w-full">
+        {/* <CardHeader>
           <CardTitle className="text-lg">Filters</CardTitle>
-        </CardHeader>
+        </CardHeader> */}
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* Search */}
-            <div>
-              <Label htmlFor="search" className="text-sm mb-2">
-                App / Company Name
-              </Label>
-              <Input
-                id="search"
-                placeholder="Search campaigns..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9"
-              />
+          <div className="space-y-4 w-full">
+            {/* Filters and Buttons Row */}
+            <div className="flex flex-col md:flex-row gap-4 w-full items-end">
+              {/* Filters Container */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-1">
+              {/* Search with Autocomplete */}
+              <div className="relative">
+                <Label htmlFor="search" className="text-sm mb-2">
+                  App / Company Name
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="search"
+                    placeholder="Search campaigns..."
+                    value={pendingSearchQuery}
+                    onChange={(e) => {
+                      setPendingSearchQuery(e.target.value);
+                      setIsSearchDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsSearchDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setIsSearchDropdownOpen(false), 200)}
+                    className="h-9"
+                  />
+                  
+                  {/* Autocomplete Dropdown */}
+                  {isSearchDropdownOpen && searchSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                      {searchSuggestions.map((suggestion) => (
+                        <button
+                          key={suggestion.id}
+                          onClick={() => {
+                            setPendingSearchQuery(suggestion.appName);
+                            setIsSearchDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2.5 hover:bg-muted transition-colors border-b border-border/40 last:border-b-0 flex flex-col gap-0.5"
+                        >
+                          <span className="text-sm font-medium text-foreground">
+                            {suggestion.appName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {suggestion.companyName}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Category Filter - Multi-Select */}
+              <div>
+                <Label htmlFor="category" className="text-sm mb-2">
+                  Category
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-9 justify-between text-foreground hover:bg-muted"
+                    >
+                      <span className="text-sm">
+                        {pendingSelectedCategories.length === 0
+                          ? "Select Categories"
+                          : `${pendingSelectedCategories.length} selected`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-3" align="start">
+                    <div className="space-y-2">
+                      {["Finance", "Tech", "Healthcare", "Retail", "Other"].map((category) => (
+                        <label key={category} className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={pendingSelectedCategories.includes(category)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setPendingSelectedCategories([...pendingSelectedCategories, category]);
+                              } else {
+                                setPendingSelectedCategories(
+                                  pendingSelectedCategories.filter((c) => c !== category)
+                                );
+                              }
+                            }}
+                            className="rounded border-gray-300 cursor-pointer"
+                          />
+                          <span className="text-sm text-foreground">{category}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Approach Stage Filter - Multi-Select */}
+              <div>
+                <Label htmlFor="stage" className="text-sm mb-2">
+                  Approach Stage
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full h-9 justify-between text-foreground hover:bg-muted"
+                    >
+                      <span className="text-sm">
+                        {pendingSelectedStages.length === 0
+                          ? "Select Stages"
+                          : `${pendingSelectedStages.length} selected`}
+                      </span>
+                      <ChevronDown className="h-4 w-4 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-3" align="start">
+                    <div className="space-y-2">
+                      {["No Attempt", "No Follow-up", "Follow-up", "Completed"].map((stage) => (
+                        <label key={stage} className="flex items-center gap-2 p-2 hover:bg-muted rounded cursor-pointer transition-colors">
+                          <input
+                            type="checkbox"
+                            checked={pendingSelectedStages.includes(stage)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setPendingSelectedStages([...pendingSelectedStages, stage]);
+                              } else {
+                                setPendingSelectedStages(
+                                  pendingSelectedStages.filter((s) => s !== stage)
+                                );
+                              }
+                            }}
+                            className="rounded border-gray-300 cursor-pointer"
+                          />
+                          <span className="text-sm text-foreground">{stage}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date Range Picker */}
+              <div className="flex flex-col gap-2 ">
+                <Label htmlFor="date-range" className="text-sm ">
+                  Date Range
+                </Label>
+                <div className="flex gap-2">
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-9 bg-transparent border border-input rounded-lg px-3 py-2 text-foreground font-medium justify-between hover:border-muted-foreground transition-colors text-sm"
+                    >
+                      <div className="flex items-center gap-2 ">
+                        <CalendarDays className="h-4 w-4" />
+                        {pendingDateRange.from ? (
+                          pendingDateRange.preset && pendingDateRange.preset !== "custom" ? (
+                            datePresets.find((p) => p.id === pendingDateRange.preset)?.label || "Custom range"
+                          ) : (
+                            `${format(pendingDateRange.from, "MMM dd")} - ${format(
+                              pendingDateRange.to,
+                              "MMM dd"
+                            )}`
+                          )
+                        ) : (
+                          "Select date range"
+                        )}
+                      </div>
+                      {isPopoverOpen ? (
+                        <CalendarDays className="h-4 w-4 rotate-180 text-foreground" />
+                      ) : (
+                        <CalendarDays className="h-4 w-4 rotate-90 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-auto p-0 bg-background rounded-xl shadow-xl border border-border scale-75 origin-top-left"
+                    align="start"
+                  >
+                    <div className="flex">
+                      {/* Presets  */}
+                      <div className="border-r border-border p-3 max-w-40">
+                        <div className="space-y-1">
+                          {datePresets.map((preset) => (
+                            <Button
+                              key={preset.id}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const range = preset.getValue();
+                                setPendingDateRange({
+                                  from: range.from,
+                                  to: range.to,
+                                  preset: preset.id,
+                                });
+                              }}
+                              className={`w-full justify-start text-right h-8 px-2 text-xs transition-all duration-200 ${
+                                pendingDateRange.preset === preset.id
+                                  ? "bg-foreground text-background font-medium"
+                                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                              }`}
+                            >
+                              {preset.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Calendar */}
+                      <div className="p-4">
+                        <Calendar
+                          mode="range"
+                          selected={{ from: pendingDateRange.from, to: pendingDateRange.to }}
+                          onSelect={(range) => {
+                            if (range?.from) {
+                              setPendingDateRange({
+                                from: range.from,
+                                to: range.to || range.from,
+                                preset: "custom",
+                              });
+                            }
+                          }}
+                          numberOfMonths={2}
+                        />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                </div>
+              </div>
+              </div>
+
+              {/* Apply and Reset Buttons */}
+              <div className="flex gap-2 w-auto">
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="h-9 px-6 text-xs font-medium"
+                  onClick={handleApplyFilters}
+                  title="Apply filters"
+                >
+                  Apply
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-6 text-xs font-medium hover:bg-muted"
+                  onClick={handleResetFilters}
+                  title="Reset to default (Last 7 days)"
+                >
+                  Reset
+                </Button>
+              </div>
             </div>
 
-            {/* Category Filter */}
-            <div>
-              <Label htmlFor="category" className="text-sm mb-2">
-                Category
-              </Label>
-              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger id="category" className="h-9">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Finance">Finance</SelectItem>
-                  <SelectItem value="Tech">Tech</SelectItem>
-                  <SelectItem value="Healthcare">Healthcare</SelectItem>
-                  <SelectItem value="Retail">Retail</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Active Filter Indicators */}
+            {(selectedCategories.length > 0 || selectedStages.length > 0 || searchQuery) && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <span className="text-xs text-muted-foreground font-medium">Active filters:</span>
+                
+                {searchQuery && (
+                  <Badge variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                    <span className="text-xs">Search: {searchQuery}</span>
+                    <button
+                      onClick={clearSearchFilter}
+                      className="ml-1 hover:bg-muted rounded-full p-0.5 transition-colors"
+                      title="Clear search"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                )}
 
-            {/* Approach Stage Filter */}
-            <div>
-              <Label htmlFor="stage" className="text-sm mb-2">
-                Approach Stage
-              </Label>
-              <Select value={selectedStage} onValueChange={setSelectedStage}>
-                <SelectTrigger id="stage" className="h-9">
-                  <SelectValue placeholder="All Stages" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stages</SelectItem>
-                  <SelectItem value="No Attempt">No Attempt</SelectItem>
-                  <SelectItem value="No Follow-up">No Follow-up</SelectItem>
-                  <SelectItem value="Follow-up">Follow-up</SelectItem>
-                  <SelectItem value="Completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                {selectedCategories.map((category) => (
+                  <Badge key={category} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                    <span className="text-xs">{category}</span>
+                    <button
+                      onClick={() => removeCategory(category)}
+                      className="ml-1 hover:bg-muted rounded-full p-0.5 transition-colors"
+                      title={`Remove ${category}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
 
-            {/* Date From */}
-            <div>
-              <Label htmlFor="date-from" className="text-sm mb-2">
-                From Date
-              </Label>
-              <Input
-                id="date-from"
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9"
-              />
-            </div>
+                {selectedStages.map((stage) => (
+                  <Badge key={stage} variant="secondary" className="gap-1 pl-2 pr-1 py-1">
+                    <span className="text-xs">{stage}</span>
+                    <button
+                      onClick={() => removeStage(stage)}
+                      className="ml-1 hover:bg-muted rounded-full p-0.5 transition-colors"
+                      title={`Remove ${stage}`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
 
-            {/* Date To */}
-            <div>
-              <Label htmlFor="date-to" className="text-sm mb-2">
-                To Date
-              </Label>
-              <Input
-                id="date-to"
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-9"
-              />
-            </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResetFilters}
+                  className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Clear all
+                </Button>
+              </motion.div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Table */}
-      <Card className="border-border/50">
-        <div className="overflow-x-auto">
+      <Card className="border-border/50 w-full">
+        <div className="overflow-x-auto w-full">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
@@ -848,11 +1269,35 @@ export default function AllCampaignsPage() {
             <TableBody>
               {filteredAndSortedCampaigns.length === 0 ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-center py-8 text-muted-foreground"
-                  >
-                    No campaigns found
+                  <TableCell colSpan={8} className="h-[400px]">
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <div className="rounded-full bg-muted p-4 mb-4">
+                        <Search className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">
+                        {searchQuery || selectedCategories.length > 0 || selectedStages.length > 0
+                          ? "No campaigns match your filters"
+                          : "No campaigns found"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4 max-w-sm text-center">
+                        {searchQuery || selectedCategories.length > 0 || selectedStages.length > 0
+                          ? "Try adjusting your search or filter criteria"
+                          : "Get started by adding your first campaign"}
+                      </p>
+                      <div className="flex gap-2">
+                        {(searchQuery || selectedCategories.length > 0 || selectedStages.length > 0) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleResetFilters}
+                            className="gap-2"
+                          >
+                            <X className="h-4 w-4" />
+                            Reset Filters
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -903,13 +1348,19 @@ export default function AllCampaignsPage() {
                         onPressedChange={() =>
                           toggleSendPermission(campaign.id)
                         }
-                        className="data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700 dark:data-[state=on]:text-green-400"
+                        className="data-[state=on]:bg-green-500/20 data-[state=on]:text-green-700 dark:data-[state=on]:text-green-400 gap-1 px-2"
                         aria-label="Toggle send permission"
                       >
                         {campaign.sendPermission ? (
-                          <Zap className="w-4 h-4" />
+                          <>
+                            <Zap className="w-4 h-4" />
+                            <span className="text-xs font-medium">Active</span>
+                          </>
                         ) : (
-                          <Zap className="w-4 h-4 opacity-50" />
+                          <>
+                            <Zap className="w-4 h-4 opacity-50" />
+                            <span className="text-xs font-medium opacity-50">Inactive</span>
+                          </>
                         )}
                       </Toggle>
                     </TableCell>
