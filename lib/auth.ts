@@ -8,7 +8,6 @@ import { JWT } from "next-auth/jwt";
 const JWT_SECRET = process.env.NEXTAUTH_SECRET!;
 if (!JWT_SECRET) throw new Error("❌ Missing NEXTAUTH_SECRET in environment variables");
 
-// 🔹 Generate Access Token (short-lived)
 function generateAccessToken(user: any) {
   return jwt.sign(
     {
@@ -62,19 +61,8 @@ export const authOptions: AuthOptions = {
             return null;
           }
 
-          // HARDCODED TEST USER (bypasses database)
-          if (credentials.email === "test@gmail.com" && credentials.password === "test") {
-            console.log(" Test user login successful");
-            return {
-              id: "test-user-id",
-              email: "test@gmail.com",
-              role: "admin",
-              fullname: "Test User",
-            };
-          }
-
           const [rows]: any = await pool.query(
-            "SELECT * FROM users WHERE email = ? LIMIT 1",
+            "SELECT u.*, r.name as role FROM users u JOIN roles r ON r.id= u.role_id WHERE email = ? LIMIT 1",
             [credentials.email]
           );
           const user = rows?.[0];

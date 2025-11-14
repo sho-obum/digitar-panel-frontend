@@ -4,62 +4,76 @@ import { jwtVerify } from "jose";
 
 const AUTH_SECRET = new TextEncoder().encode(process.env.NEXTAUTH_SECRET);
 
-// 🟢 Define public routes that don’t need authentication
+// Public routes that NEVER require auth
 const publicRoutes = [
   "/login",
   "/signup",
   "/forgot-password",
-  "/api/auth",
+  "/api/auth",          
   "/api/test",
   "/api/app-detail",
-  "/public",
-  "/favicon.ico",
-  "/_next",
-  "/images",
   "/api/admin/signup",
+  "/public",
+  "/favicon.ico"
 ];
 
-// 🧠 Helper: Check if a route is public
+// Check if request matches public route
 function isPublicPath(pathname: string) {
   return publicRoutes.some((route) => pathname.startsWith(route));
 }
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  console.log("🌐 Middleware checking path:", pathname);
 
-  if (isPublicPath(pathname)) {
-    console.log("✅ Public route — skipping authentication");
+  // Skip Next.js internal assets & image loaders
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/images") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".jpg") ||
+    pathname.endsWith(".svg")
+  ) {
     return NextResponse.next();
   }
 
-  // 🔐 Try reading the NextAuth session token from cookies
+  // Allow public routes
+  if (isPublicPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Read token (HTTP / HTTPS both)
   const token =
     req.cookies.get("next-auth.session-token")?.value ||
     req.cookies.get("__Secure-next-auth.session-token")?.value;
 
   if (!token) {
-    console.log("🚫 No NextAuth session token found — redirecting to /login");
+    // No session: redirect to login
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   try {
-    // 🔍 Verify JWT token using JOSE
-    const { payload } = await jwtVerify(token, AUTH_SECRET);
-    console.log("✅ JWT verified for user:", payload?.email || "unknown");
+    // Verify token using JOSE
+    await jwtVerify(token, AUTH_SECRET);
 
-    // ✅ Token valid → continue
+    // Token valid → allow page
     return NextResponse.next();
-  } catch (err) {
-    console.error("❌ Invalid or expired JWT:", err);
+
+  } catch (error) {
+    console.error("❌ Invalid or expired JWT");
+
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("from", pathname);
+    loginUrl.searchParams.set("expired", "1");
+    loginUrl.searchParams.set("redirectTo", pathname);
+
     return NextResponse.redirect(loginUrl);
   }
 }
 
+// Match all pages except static files 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+  ],
 };
