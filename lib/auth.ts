@@ -2,7 +2,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { pool } from "@/lib/db";
-import { AuthOptions } from "next-auth";
+import NextAuth, { AuthOptions } from "next-auth";
 import { JWT } from "next-auth/jwt";
 
 const JWT_SECRET = process.env.NEXTAUTH_SECRET!;
