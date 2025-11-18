@@ -1,6 +1,5 @@
 "use client";
-
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,6 +55,7 @@ import { toast } from "sonner";
 
 // Types
 type Category = {
+  default: any;
   id: string;
   name: string;
   description: string;
@@ -71,124 +71,57 @@ type SortConfig = {
 };
 
 // Mock data generator
-const generateMockCategories = (): Category[] => {
-  const categories = [
-    {
-      id: "1",
-      name: "Product Demo",
-      description: "Automated sequence for product demo requests",
-      isActive: true,
-      totalEmails: 4,
-      createdAt: new Date(2025, 9, 20),
-      updatedAt: new Date(2025, 10, 5),
-    },
-    {
-      id: "2",
-      name: "Cold Outreach",
-      description: "Initial contact sequence for cold leads",
-      isActive: true,
-      totalEmails: 3,
-      createdAt: new Date(2025, 9, 18),
-      updatedAt: new Date(2025, 10, 3),
-    },
-    {
-      id: "3",
-      name: "Trial Users",
-      description: "Follow-up sequence for trial sign-ups",
-      isActive: false,
-      totalEmails: 4,
-      createdAt: new Date(2025, 9, 15),
-      updatedAt: new Date(2025, 10, 1),
-    },
-    {
-      id: "4",
-      name: "Newsletter Signup",
-      description: "Welcome sequence for newsletter subscribers",
-      isActive: true,
-      totalEmails: 2,
-      createdAt: new Date(2025, 8, 20),
-      updatedAt: new Date(2025, 10, 4),
-    },
-    {
-      id: "5",
-      name: "Abandoned Cart",
-      description: "Recovery emails for abandoned shopping carts",
-      isActive: true,
-      totalEmails: 5,
-      createdAt: new Date(2025, 8, 15),
-      updatedAt: new Date(2025, 10, 2),
-    },
-    {
-      id: "6",
-      name: "Re-engagement",
-      description: "Win back inactive customers",
-      isActive: false,
-      totalEmails: 3,
-      createdAt: new Date(2025, 8, 10),
-      updatedAt: new Date(2025, 9, 28),
-    },
-    {
-      id: "7",
-      name: "VIP Customer",
-      description: "Premium customer exclusive offers",
-      isActive: true,
-      totalEmails: 6,
-      createdAt: new Date(2025, 7, 25),
-      updatedAt: new Date(2025, 10, 6),
-    },
-    {
-      id: "8",
-      name: "Event Invitation",
-      description: "Webinar and event invitation sequences",
-      isActive: true,
-      totalEmails: 3,
-      createdAt: new Date(2025, 7, 20),
-      updatedAt: new Date(2025, 10, 1),
-    },
-    {
-      id: "9",
-      name: "Feedback Request",
-      description: "Post-purchase feedback and reviews",
-      isActive: false,
-      totalEmails: 2,
-      createdAt: new Date(2025, 7, 15),
-      updatedAt: new Date(2025, 9, 30),
-    },
-    {
-      id: "10",
-      name: "Upsell Campaign",
-      description: "Cross-sell and upsell opportunities",
-      isActive: true,
-      totalEmails: 4,
-      createdAt: new Date(2025, 7, 10),
-      updatedAt: new Date(2025, 10, 5),
-    },
-    {
-      id: "11",
-      name: "Birthday Special",
-      description: "Special offers on customer birthdays",
-      isActive: true,
-      totalEmails: 1,
-      createdAt: new Date(2025, 6, 30),
-      updatedAt: new Date(2025, 10, 4),
-    },
-    {
-      id: "12",
-      name: "Partner Onboarding",
-      description: "Partner integration and onboarding flow",
-      isActive: false,
-      totalEmails: 5,
-      createdAt: new Date(2025, 6, 25),
-      updatedAt: new Date(2025, 9, 29),
-    },
-  ];
-  return categories;
+const generateMockCategories = async (): Promise<Category[]> => {
+  try {
+    // 👇 Hit your real API endpoint
+    const res = await fetch("/api/templates/email/categories/0", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.error("Failed to fetch categories:", res.statusText);
+      return [];
+    }
+
+    const json = await res.json();
+
+    if (!json.data || !Array.isArray(json.data)) {
+      console.error("Invalid response format:", json);
+      return [];
+    }
+
+    const categories: Category[] = json.data.map((cat: any) => ({
+      id: cat.client_cat?.toString(),
+      name: cat.cat_name,
+      description: cat.description,
+      isActive: cat.is_active ?? false,
+      default: cat.default_cat === 1 ? true : false,
+      totalEmails: cat.total_emails ?? cat.totalEmails ?? 0,
+      createdAt: new Date(cat.created_at ?? cat.createdAt),
+      updatedAt: new Date(cat.updated_at ?? cat.updatedAt),
+    }));
+
+    return categories;
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    return [];
+  }
 };
 
 export default function ManageCategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>(
-    generateMockCategories()
-  );
+  const [categories, setCategories] = useState<Category[]>([]);
+  const hasFetched = useRef(false);
+
+  if (!hasFetched.current) {
+    hasFetched.current = true;
+    generateMockCategories().then((data) => {
+      if (Array.isArray(data)) setCategories(data);
+    });
+  }
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -233,6 +166,7 @@ export default function ManageCategoriesPage() {
 
   // Filter and sort categories
   const sortedCategories = useMemo(() => {
+    if (!Array.isArray(categories)) return [];
     let filtered = categories.filter((cat) =>
       cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cat.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -260,13 +194,13 @@ export default function ManageCategoriesPage() {
             ? (aValue as boolean) === (bValue as boolean)
               ? 0
               : (aValue as boolean)
-              ? 1
-              : -1
+                ? 1
+                : -1
             : (aValue as boolean) === (bValue as boolean)
-            ? 0
-            : (aValue as boolean)
-            ? -1
-            : 1;
+              ? 0
+              : (aValue as boolean)
+                ? -1
+                : 1;
         }
 
         return sortConfig.direction === "asc"
@@ -284,16 +218,15 @@ export default function ManageCategoriesPage() {
 
     if (!formData.name.trim()) {
       errors.name = "Category name is required";
-    } else if (formData.name.trim().length < 3) {
-      errors.name = "Category name must be at least 3 characters";
+    } else if (formData.name.trim().length < 3 || formData.name.trim().length > 45) {
+      errors.name = "Category name must be at least 3 characters and less than 45.";
     }
 
     if (!formData.description.trim()) {
       errors.description = "Description is required";
-    } else if (formData.description.trim().length < 10) {
-      errors.description = "Description must be at least 10 characters";
+    } else if (formData.description.trim().length < 10 || formData.description.trim().length > 255) {
+      errors.description = "Description must be at least 10 characters and less than 255.";
     }
-
     setFormErrors(errors);
     return Object.values(errors).every((error) => error === "");
   };
@@ -304,30 +237,49 @@ export default function ManageCategoriesPage() {
       toast.error("Please fix the validation errors");
       return;
     }
-
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      const res = await fetch("/api/templates/email/categories/add", {
+        method: "POST",
+        body: JSON.stringify({
+          category_name: formData.name,
+          description: formData.description,
+        }),
+      });
 
-    const newCategory: Category = {
-      id: String(Math.max(...categories.map((c) => parseInt(c.id)), 0) + 1),
-      name: formData.name,
-      description: formData.description,
-      isActive: true,
-      totalEmails: 0,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+      const json = await res.json();
+      if (!res.ok) {
+        if (res.status === 409 && json.warning) {
+          toast.warning(json.warning);
+        } else {
+          toast.error(json.message);
+        }
+        return;
+      }
 
-    setCategories([...categories, newCategory]);
-    setFormData({ name: "", description: "" });
-    setFormErrors({ name: "", description: "" });
-    setIsLoading(false);
-    setIsCreateOpen(false);
+      const newCategory = {
+        id: json.category.id,
+        name: json.category.name,
+        description: json.category.description,
+        isActive: json.category.isActive,
+        totalEmails: 0,
+        default: false,
+        createdAt: new Date(json.category.createdAt),
+        updatedAt: new Date(json.category.updatedAt),
+      };
 
-    toast.success("Category created successfully!", {
-      description: `"${newCategory.name}" has been added.`,
-    });
+      setCategories([...categories, newCategory]);
+      setFormData({ name: "", description: "" });
+      setIsCreateOpen(false);
+      toast.success("Category created successfully!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Network error — please try again later");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   // Edit category
   const handleEditCategory = async () => {
@@ -337,60 +289,102 @@ export default function ManageCategoriesPage() {
     }
 
     setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
 
-    setCategories(
-      categories.map((cat) =>
-        cat.id === categoryToEdit.id
-          ? {
+    try {
+      const res = await fetch(`/api/templates/email/categories/${categoryToEdit.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast.error(json.error || "Failed to update category");
+        return;
+      }
+
+      // ✅ Update state on success
+      setCategories(
+        categories.map((cat) =>
+          cat.id === categoryToEdit.id
+            ? {
               ...cat,
-              name: formData.name,
-              description: formData.description,
-              updatedAt: new Date(),
+              name: json.category?.name || formData.name,
+              description: json.category?.description || formData.description,
+              updatedAt: new Date(json.category?.updatedAt || Date.now()),
             }
-          : cat
-      )
-    );
+            : cat
+        )
+      );
 
-    setCategoryToEdit(null);
-    setFormData({ name: "", description: "" });
-    setFormErrors({ name: "", description: "" });
-    setIsLoading(false);
-    setIsEditOpen(false);
+      toast.success("Category updated successfully!", {
+        description: `"${formData.name}" has been updated.`,
+      });
 
-    toast.success("Category updated successfully!", {
-      description: `"${formData.name}" has been updated.`,
-    });
+    } catch (err) {
+      console.error("Edit category error:", err);
+      toast.error("Network error — please try again later");
+    } finally {
+      setIsLoading(false);
+      setIsEditOpen(false);
+      setCategoryToEdit(null);
+      setFormData({ name: "", description: "" });
+      setFormErrors({ name: "", description: "" });
+    }
   };
-
   // Delete category
   const handleDeleteCategory = async () => {
     if (!categoryToDelete) return;
 
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    try {
+      setIsLoading(true);
+      const res = await fetch(
+        `/api/templates/email/categories/${categoryToDelete.id}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-    setCategories(
-      categories.filter((cat) => cat.id !== categoryToDelete.id)
-    );
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData?.message || "Failed to delete category");
+      }
 
-    setCategoryToDelete(null);
-    setIsLoading(false);
-    setIsDeleteOpen(false);
+      // Update UI after successful delete
+      setCategories((prev) =>
+        prev.filter((cat) => cat.id !== categoryToDelete.id)
+      );
 
-    toast.success("Category deleted successfully!", {
-      description: `"${categoryToDelete.name}" has been permanently deleted.`,
-    });
+      toast.success("Category deleted successfully!", {
+        description: `"${categoryToDelete.name}" has been permanently deleted.`,
+      });
+    } catch (err: any) {
+      console.error("Delete category error:", err);
+      toast.error("Failed to delete category", {
+        description:
+          err?.message ||
+          "Something went wrong while deleting this category.",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteOpen(false);
+      setCategoryToDelete(null);
+    }
   };
 
-  // Toggle status
   const handleToggleStatus = async () => {
     if (!categoryToToggle) return;
 
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
     const newStatus = !categoryToToggle.isActive;
+    setIsLoading(true);
+
 
     setCategories(
       categories.map((cat) =>
@@ -399,20 +393,47 @@ export default function ManageCategoriesPage() {
           : cat
       )
     );
+    try {
+
+      const res = await fetch(`/api/templates/email/categories/${categoryToToggle.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update");
+      }
+
+      toast.success(
+        newStatus ? "Category activated" : "Category deactivated",
+        {
+          description: `"${categoryToToggle.name}" is now ${newStatus ? "active" : "inactive"
+            }.`,
+        }
+      );
+    } catch (error) {
+      setCategories(
+        categories.map((cat) =>
+          cat.id === categoryToToggle.id
+            ? { ...cat, isActive: !newStatus }
+            : cat
+        )
+      );
+
+      const message =
+        error instanceof Error ? error.message : "Something went wrong";
+
+      toast.error("Failed to update category", {
+        description: message,
+      });
+    }
 
     setCategoryToToggle(null);
     setIsLoading(false);
     setIsStatusOpen(false);
-
-    toast.success(
-      newStatus ? "Category activated" : "Category deactivated",
-      {
-        description: `"${categoryToToggle.name}" is now ${
-          newStatus ? "active" : "inactive"
-        }.`,
-      }
-    );
   };
+
 
   return (
     <div className="flex flex-1 flex-col gap-6">
@@ -443,7 +464,7 @@ export default function ManageCategoriesPage() {
             setCategoryToEdit(null);
             setIsCreateOpen(true);
           }}
-          className="bg-black text-white hover:bg-gray-800"
+          className="bg-black text-white hover:bg-gray-800 cursor-pointer"
         >
           <Plus className="h-4 w-4 mr-2" />
           Create Category
@@ -467,7 +488,7 @@ export default function ManageCategoriesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 p-0 hover:bg-transparent w-full justify-center"
+                      className="h-8 p-0 hover:bg-transparent w-full justify-center cursor-pointer"
                       onClick={() => handleSort("id")}
                     >
                       No.
@@ -478,7 +499,7 @@ export default function ManageCategoriesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 p-0 hover:bg-transparent w-full justify-center"
+                      className="h-8 p-0 hover:bg-transparent w-full justify-center cursor-pointer"
                       onClick={() => handleSort("name")}
                     >
                       Name
@@ -489,7 +510,7 @@ export default function ManageCategoriesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 p-0 hover:bg-transparent w-full justify-center"
+                      className="h-8 p-0 hover:bg-transparent w-full justify-center cursor-pointer"
                       onClick={() => handleSort("description")}
                     >
                       Description
@@ -500,33 +521,33 @@ export default function ManageCategoriesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 p-0 hover:bg-transparent w-full justify-center"
+                      className="h-8 p-0 hover:bg-transparent w-full justify-center cursor-pointer"
                       onClick={() => handleSort("isActive")}
                     >
                       Status
                       {getSortIcon("isActive")}
                     </Button>
                   </TableHead>
-                  <TableHead className="text-center w-32">
+                  {/* <TableHead className="text-center w-32">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 p-0 hover:bg-transparent w-full justify-center"
+                      className="h-8 p-0 hover:bg-transparent w-full justify-center cursor-pointer"
                       onClick={() => handleSort("totalEmails")}
                     >
                       Emails
                       {getSortIcon("totalEmails")}
                     </Button>
-                  </TableHead>
+                  </TableHead> */}
                   <TableHead className="text-center w-44">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 p-0 hover:bg-transparent w-full justify-center"
-                      onClick={() => handleSort("updatedAt")}
+                      className="h-8 p-0 hover:bg-transparent w-full justify-center cursor-pointer"
+                      onClick={() => handleSort("createdAt")}
                     >
-                      Updated
-                      {getSortIcon("updatedAt")}
+                      CreatedAt
+                      {getSortIcon("createdAt")}
                     </Button>
                   </TableHead>
                   <TableHead className="text-center w-32">Actions</TableHead>
@@ -550,12 +571,12 @@ export default function ManageCategoriesPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge
-                          className={`cursor-pointer transition-all ${
-                            category.isActive
+                          className={`cursor-pointer transition-all ${category.isActive
                               ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-900"
                               : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700"
-                          } flex items-center gap-1 justify-center w-fit mx-auto`}
+                            } flex items-center gap-1 justify-center w-fit mx-auto`}
                           onClick={() => {
+                            if (category.default) return;
                             setCategoryToToggle(category);
                             setIsStatusOpen(true);
                           }}
@@ -568,13 +589,13 @@ export default function ManageCategoriesPage() {
                           {category.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center">
+                      {/* <TableCell className="text-center">
                         <Badge variant="outline" className="font-mono">
                           {category.totalEmails}
                         </Badge>
-                      </TableCell>
+                      </TableCell> */}
                       <TableCell className="text-center text-sm">
-                        {format(category.updatedAt, "MMM dd, yyyy")}
+                        {category.default ? 'Default' : format(category.updatedAt, "MMM dd, yyyy")}
                       </TableCell>
                       <TableCell className="text-center">
                         <div className="flex items-center justify-center gap-2">
@@ -582,6 +603,7 @@ export default function ManageCategoriesPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
+                              if (category.default) return;
                               setCategoryToEdit(category);
                               setFormData({
                                 name: category.name,
@@ -589,21 +611,29 @@ export default function ManageCategoriesPage() {
                               });
                               setIsEditOpen(true);
                             }}
-                            className="hover:bg-blue-50 dark:hover:bg-blue-950"
+                            disabled={category.default}
+                            className={`${category.default
+                              ? "opacity-40 pointer-events-none blur-[1px] cursor-not-allowed"
+                              : "hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
+                              }`}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                          <Button variant="outline" size="sm"
                             onClick={() => {
+                              if (category.default) return;
                               setCategoryToDelete(category);
                               setIsDeleteOpen(true);
                             }}
-                            className="hover:bg-red-50 dark:hover:bg-red-950"
+                            disabled={category.default}
+                            className={`${category.default
+                              ? "opacity-40 pointer-events-none blur-[1px] cursor-not-allowed"
+                              : "hover:bg-red-50 dark:hover:bg-red-950 cursor-pointer"
+                              }`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
+
                         </div>
                       </TableCell>
                     </TableRow>
