@@ -1,93 +1,84 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { pool } from "@/lib/db";
+import { UAParser } from "ua-parser-js";
+//ua parser for raw user data to clean data easilyy 
+interface LoginHistoryRow {
+  id: number;
+  email: string;
+  status: string;
+  ip_address: string;
+  user_agent: string;
+  created_at: Date;
+}
 
-//
-const mockLoginHistory = [
-  {
-    id: "1",
-    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), 
-    ipAddress: "192.168.1.100",
-    device: "Windows Desktop",
-    browser: "Chrome 120.0",
-    status: "success" as const,
-    location: "New York, USA",
-  },
-  {
-    id: "2",
-    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), 
-    ipAddress: "203.0.113.45",
-    device: "iPhone 15",
-    browser: "Safari",
-    status: "success" as const,
-    location: "New York, USA",
-  },
-  {
-    id: "3",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), 
-    ipAddress: "198.51.100.78",
-    device: "MacBook Pro",
-    browser: "Firefox 121.0",
-    status: "success" as const,
-    location: "Los Angeles, USA",
-  },
-  {
-    id: "4",
-    timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), 
-    ipAddress: "192.168.1.105",
-    device: "Android Phone",
-    browser: "Chrome Mobile",
-    status: "failed" as const,
-    location: "New York, USA",
-  },
-  {
-    id: "5",
-    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), 
-    ipAddress: "192.168.1.100",
-    device: "Windows Desktop",
-    browser: "Edge 120.0",
-    status: "success" as const,
-    location: "New York, USA",
-  },
-  {
-    id: "6",
-    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
-    ipAddress: "203.0.113.50",
-    device: "iPad Air",
-    browser: "Safari",
-    status: "success" as const,
-    location: "Chicago, USA",
-  },
-  {
-    id: "7",
-    timestamp: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
-    ipAddress: "198.51.100.80",
-    device: "Windows Desktop",
-    browser: "Chrome 119.0",
-    status: "failed" as const,
-    location: "New York, USA",
-  },
-  {
-    id: "8",
-    timestamp: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(), // 12 days ago
-    ipAddress: "192.168.1.100",
-    device: "Windows Desktop",
-    browser: "Chrome 119.0",
-    status: "success" as const,
-    location: "New York, USA",
-  },
-];
 
-/* -------------------------------------------- */
-/* GET ENDPOINT */
-/* -------------------------------------------- */
+/* HELPER: Parse User Agent */
+
+function parseUserAgent(userAgent: string | null): { device: string; browser: string } {
+  if (!userAgent) return { device: "Unknown Device", browser: "Unknown Browser" };
+
+  try {
+    const parser = new UAParser(userAgent);
+    const result = parser.getResult();
+
+    const device = result.device.model || result.os.name || "Unknown Device";
+    const browser = result.browser.name
+      ? `${result.browser.name} ${result.browser.version || ""}`.trim()
+      : "Unknown Browser";
+
+    return { device, browser };
+  } catch (error) {
+    return { device: "Unknown Device", browser: "Unknown Browser" };
+  }
+}
+
+
+/* GET Fetch from Database */
+
 export async function GET(request: Request) {
   try {
-    // In production, you would:
-    // 1. Verify the user is authenticated
-    // 2. Fetch from your database
-    // 3. Apply pagination and filtering
+    //  Step 1: user is authenticated ?
+    const session = await getServerSession(authOptions);
 
-    return NextResponse.json(mockLoginHistory, {
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: "Unauthorized - Please log in" },
+        { status: 401 }
+      );
+    }
+
+    //  Step 2: Query db
+    const [rows] = await pool.query(
+      `SELECT id, email, status, ip_address, user_agent, created_at 
+       FROM login_logs 
+       WHERE email = ? AND status IN ('success', 'failed')
+       ORDER BY created_at DESC 
+       LIMIT 50`,
+      [session.user.email]
+    );
+
+    // Step 3: Transform database rows -> match frontend interface
+    const loginHistory = (rows as LoginHistoryRow[]).map((row) => {
+      // Handle localhost IP
+      let displayIp = row.ip_address || "Unknown";
+      if (displayIp === "::1" || displayIp === "127.0.0.1") {
+        displayIp = "Localhost";
+      }
+
+      return {
+        id: String(row.id),
+        timestamp: new Date(row.created_at).toISOString(),
+        ipAddress: displayIp,
+        device: parseUserAgent(row.user_agent).device,
+        browser: parseUserAgent(row.user_agent).browser,
+        status: (row.status === "success" ? "success" : "failed") as "success" | "failed",
+        location: "Unknown", //Rahul :: how to add location?
+      };
+    });
+
+    return NextResponse.json(loginHistory, {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -96,7 +87,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Error fetching login history:", error);
     return NextResponse.json(
-      { error: "Failed to fetch login history" },
+      { error: "Failed to fetch login history", details: (error as Error).message },
       { status: 500 }
     );
   }

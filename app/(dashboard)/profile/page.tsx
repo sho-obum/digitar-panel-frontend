@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -48,15 +49,16 @@ interface UserProfile {
 /* PAGE COMPONENT */
 /* -------------------------------------------- */
 export default function ProfilePage() {
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState("general");
   const [loginHistory, setLoginHistory] = useState<LoginHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("all");
   
   const [profileData, setProfileData] = useState<UserProfile>({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john.doe@example.com",
+    firstName: session?.user?.fullname?.split(" ")[0] || "User",
+    lastName: session?.user?.fullname?.split(" ")[1] || "",
+    email: session?.user?.email || "user@example.com",
     phone: "+1 (555) 123-4567",
     company: "Digitar Media",
   });
