@@ -5,7 +5,6 @@ import { log } from "@/lib/logger";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { orgDataByWeb } from '@/helpers/apolloApi';
-import { getRealIp } from '@/lib/getRealIp';
 
 async function orgData(domain: string) {
   const [rows]: any = await pool.query(
@@ -107,7 +106,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const userIP = getRealIp(request);
+    const userIP = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || '127.0.0.1';
     session = await getServerSession(authOptions);
 
     log.info('Received preview link request', { previewLink, userAgent: request.headers.get('user-agent'), userIP: userIP });
