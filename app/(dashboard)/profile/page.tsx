@@ -56,9 +56,9 @@ export default function ProfilePage() {
   const [filterStatus, setFilterStatus] = useState("all");
   
   const [profileData, setProfileData] = useState<UserProfile>({
-    firstName: session?.user?.fullname?.split(" ")[0] || "User",
-    lastName: session?.user?.fullname?.split(" ")[1] || "",
-    email: session?.user?.email || "user@example.com",
+    firstName: "User",
+    lastName: "",
+    email: "user@example.com",
     phone: "+1 (555) 123-4567",
     company: "Digitar Media",
   });
@@ -69,8 +69,24 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
 
+  // ✅ Update profile data when session is available
   useEffect(() => {
-    // Fetch login history
+    if (session?.user) {
+      const fullName = session.user.fullname || session.user.name || "";
+      const nameParts = fullName.split(" ");
+      
+      setProfileData({
+        firstName: nameParts[0] || "User",
+        lastName: nameParts.slice(1).join(" ") || "",
+        email: session.user.email || "user@example.com",
+        phone: "+1 (555) 123-4567",
+        company: "Digitar Media",
+      });
+    }
+  }, [session]);
+
+  // ✅ Fetch login history on load
+  useEffect(() => {
     const fetchLoginHistory = async () => {
       try {
         const response = await fetch("/api/user/login-history");
