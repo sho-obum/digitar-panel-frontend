@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +20,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MinimalTiptap } from "@/components/ui/shadcn-io/minimal-tiptap";
 import { EmailComposer } from "@/components/email-composer";
 import {
   Eye,
@@ -37,7 +36,6 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ClickSpark } from "@/components/click-spark";
-import { ShineBorder } from "@/components/ui/shine-border";
 import {
   Select,
   SelectContent,
@@ -160,18 +158,45 @@ export default function EmailTemplatePage() {
     templateFor: "Initial" as "Initial" | "Follow up",
     campaignCategory: "Finance" as string,
     htmlBody: "",
+    campaignName: "",
+    campaignCategoryId: "",
+    campaignDescription: "",
   });
 
   // Categories state
-  const [categories, setCategories] = useState<string[]>([
-    "Finance",
-    "Tech",
-    "Marketing",
-    "Sales",
-    "Support",
-  ]);
+  type categories = {
+    id: string;
+    name: string;
+    isActive: boolean;
+  };
 
+  const [categories, setCategories] = useState<categories[]>([]);
 
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("/api/templates/email/categories/0", {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        const json = await res.json();
+
+        if (json.success && Array.isArray(json.data)) {
+          const formatted = json.data.map((item: any) => ({
+            id: item.client_cat,
+            name: item.cat_name,
+            isActive: item.is_active === "active",
+          }));
+          setCategories(formatted);
+        }
+      } catch (e) {
+        console.error("Category Load Error:", e);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Handle sorting
   const handleSort = (key: keyof EmailTemplate) => {
@@ -220,33 +245,58 @@ export default function EmailTemplatePage() {
     return sorted;
   }, [templates, sortConfig]);
 
-  // Handle create new template
   const handleCreateNew = () => {
     setFormData({
       templateName: "",
       subject: "",
       templateFor: "Initial",
-      campaignCategory: "Finance",
+      campaignCategory: "",
       htmlBody: "",
+      campaignName: "",
+      campaignCategoryId: "",
+      campaignDescription: "",
     });
     setIsCreateDialogOpen(true);
   };
 
-  // Handle save template
-  const handleSave = () => {
-    const newTemplate: EmailTemplate = {
-      id: String(templates.length + 1),
-      templateName: formData.templateName,
-      subject: formData.subject,
-      templateFor: formData.templateFor,
-      addedAt: new Date(),
-      status: "active",
-      isDefault: false,
-      htmlBody: formData.htmlBody,
-      category: formData.campaignCategory,
-    };
-    setTemplates([...templates, newTemplate]);
-    setIsCreateDialogOpen(false);
+  const handleSave = async () => {
+    const { templateName, subject, templateFor, campaignCategoryId, htmlBody } = formData;
+
+    if (!templateName || !subject || !campaignCategoryId) {
+      alert("Please fill all fields and select a category.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/templates/email/cat-mapping", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          templateName,
+          subject,
+          templateFor,
+          categoryId: campaignCategoryId, // send ID here
+          htmlBody,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (json.success) {
+        // Optionally update local state
+        setTemplates((prev) => [...prev, json.data]);
+        alert("Template created successfully!");
+        setIsCreateDialogOpen(false);
+      } else {
+        console.error("API error:", json.message);
+        alert("Failed to create template: " + json.message);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Network error while creating template.");
+    }
   };
 
   // Handle status toggle
@@ -278,6 +328,9 @@ export default function EmailTemplatePage() {
       templateFor: template.templateFor,
       campaignCategory: template.category,
       htmlBody: template.htmlBody,
+      campaignName: "",
+      campaignCategoryId: "",
+      campaignDescription: "",
     });
     setEditMode("edit");
     setIsEditDialogOpen(true);
@@ -292,6 +345,9 @@ export default function EmailTemplatePage() {
       templateFor: template.templateFor,
       campaignCategory: template.category,
       htmlBody: template.htmlBody,
+      campaignName: "",
+      campaignCategoryId: "",
+      campaignDescription: "",
     });
     setEditMode("duplicate");
     setIsEditDialogOpen(true);
@@ -635,42 +691,50 @@ export default function EmailTemplatePage() {
                           })
                         }
                       >
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger className="w-full cursor-pointer">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent className="z-9999">
-                          <SelectItem value="Initial">Initial</SelectItem>
-                          <SelectItem value="Follow up">Follow up</SelectItem>
+                          <SelectItem value="Initial" className="cursor-pointer">Initial</SelectItem>
+                          <SelectItem value="Follow up" className="cursor-pointer">Follow up</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     {/* Category */}
+                    {/* Category Dropdown */}
                     <div className="space-y-2">
-                      <Label
-                        htmlFor="createCategory"
-                        className="text-sm font-medium"
-                      >
-                        Category
-                      </Label>
+                      <Label className="text-sm font-medium">Category</Label>
+
                       <Select
-                        value={formData.campaignCategory}
+                        value={formData.campaignCategoryId}
                         onValueChange={(value) =>
-                          setFormData({ ...formData, campaignCategory: value })
+                          setFormData({ ...formData, campaignCategoryId: value })
                         }
                       >
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select" />
+                        <SelectTrigger className="w-full cursor-pointer">
+                          <SelectValue placeholder="Select Category" />
                         </SelectTrigger>
-                        <SelectContent className="z-9999">
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
+
+                        <SelectContent className="z-50">
+                          {categories.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-muted-foreground">
+                              No categories found
+                            </div>
+                          ) : (
+                            categories
+                              .filter((c) => c.isActive)
+                              .map((cat) => (
+                                <SelectItem key={cat.id} value={cat.id} className="cursor-pointer">
+                                  {cat.name}
+                                </SelectItem>
+                              ))
+                          )}
                         </SelectContent>
                       </Select>
+
                     </div>
+
                   </div>
 
                   {/* Subject */}
@@ -723,7 +787,7 @@ export default function EmailTemplatePage() {
                     </Button>
                     <Button
                       onClick={handleSave}
-                      className="bg-black text-white hover:bg-gray-800 shadow-sm"
+                      className="bg-black text-white hover:bg-gray-800 shadow-sm cursor-pointer"
                       disabled={!formData.templateName || !formData.subject}
                     >
                       <Save className="h-4 w-4 mr-2" />
@@ -894,13 +958,13 @@ export default function EmailTemplatePage() {
                             templates.map((t) =>
                               t.id === selectedTemplate.id
                                 ? {
-                                    ...t,
-                                    templateName: formData.templateName,
-                                    subject: formData.subject,
-                                    templateFor: formData.templateFor,
-                                    category: formData.campaignCategory,
-                                    htmlBody: formData.htmlBody,
-                                  }
+                                  ...t,
+                                  templateName: formData.templateName,
+                                  subject: formData.subject,
+                                  templateFor: formData.templateFor,
+                                  category: formData.campaignCategory,
+                                  htmlBody: formData.htmlBody,
+                                }
                                 : t
                             )
                           );
