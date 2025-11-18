@@ -892,11 +892,13 @@ export default function EmailTemplatePage() {
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent className="z-9999">
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
+                          {categories
+                            .filter((c) => c.isActive)
+                            .map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                     </div>
