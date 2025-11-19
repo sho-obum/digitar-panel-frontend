@@ -188,7 +188,7 @@ export default function EmailTemplatePage() {
         setCategoriesLoading(true);
         setCategoriesError(null);
         const response = await fetch(
-          "http://localhost:3000/api/templates/email/categories/0"
+          "/api/templates/email/categories/0"
         );
         if (!response.ok) {
           throw new Error("Failed to fetch categories");
