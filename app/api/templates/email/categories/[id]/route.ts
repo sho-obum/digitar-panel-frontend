@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { log } from "@/lib/logger";
 import { getRealIp } from "@/lib/getRealIp";
+import { RowDataPacket, ResultSetHeader } from "mysql2";
 
 interface CategoryRequest {
   category_name: string;
