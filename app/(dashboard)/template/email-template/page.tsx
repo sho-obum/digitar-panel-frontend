@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmailTemplatePlaceholderBox } from "@/components/email-template-placeholder-box";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type EmailTemplate = {
   id: string;
@@ -62,6 +63,16 @@ type EmailTemplate = {
 type SortConfig = {
   key: keyof EmailTemplate | null;
   direction: "asc" | "desc";
+};
+
+type Category = {
+  client_cat: number;
+  cat_name: string;
+  description: string;
+  is_active: string;
+  default_cat: number;
+  updated_at: string;
+  created_at: string;
 };
 
 // Mock data generator
@@ -158,18 +169,45 @@ export default function EmailTemplatePage() {
     templateName: "",
     subject: "",
     templateFor: "Initial" as "Initial" | "Follow up",
-    campaignCategory: "Finance" as string,
+    campaignCategory: "" as string,
     htmlBody: "",
   });
 
   // Categories state
-  const [categories, setCategories] = useState<string[]>([
-    "Finance",
-    "Tech",
-    "Marketing",
-    "Sales",
-    "Support",
-  ]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        setCategoriesLoading(true);
+        setCategoriesError(null);
+        const response = await fetch(
+          "http://localhost:3000/api/templates/email/categories/0"
+        );
+        if (!response.ok) {
+          throw new Error("Failed to fetch categories");
+        }
+        const data = await response.json();
+        
+        // Filter only active categories
+        const activeCategories = data.data.filter(
+          (cat: Category) => cat.is_active === "active"
+        );
+        setCategories(activeCategories);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+        setCategoriesError("Failed to load categories");
+        setCategories([]);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
 
 
@@ -226,7 +264,7 @@ export default function EmailTemplatePage() {
       templateName: "",
       subject: "",
       templateFor: "Initial",
-      campaignCategory: "Finance",
+      campaignCategory: "",
       htmlBody: "",
     });
     setIsCreateDialogOpen(true);
@@ -234,6 +272,11 @@ export default function EmailTemplatePage() {
 
   // Handle save template
   const handleSave = () => {
+    // Find category name by client_cat id
+    const selectedCategory = categories.find(
+      (cat) => String(cat.client_cat) === String(formData.campaignCategory)
+    );
+    
     const newTemplate: EmailTemplate = {
       id: String(templates.length + 1),
       templateName: formData.templateName,
@@ -243,7 +286,7 @@ export default function EmailTemplatePage() {
       status: "active",
       isDefault: false,
       htmlBody: formData.htmlBody,
-      category: formData.campaignCategory,
+      category: selectedCategory?.cat_name || formData.campaignCategory,
     };
     setTemplates([...templates, newTemplate]);
     setIsCreateDialogOpen(false);
@@ -272,11 +315,16 @@ export default function EmailTemplatePage() {
   // Handle edit template
   const handleEdit = (template: EmailTemplate) => {
     setSelectedTemplate(template);
+    // Find the category ID by name
+    const categoryId = categories.find(
+      (cat) => cat.cat_name === template.category
+    )?.client_cat;
+    
     setFormData({
       templateName: template.templateName,
       subject: template.subject,
       templateFor: template.templateFor,
-      campaignCategory: template.category,
+      campaignCategory: categoryId ? String(categoryId) : "",
       htmlBody: template.htmlBody,
     });
     setEditMode("edit");
@@ -286,11 +334,16 @@ export default function EmailTemplatePage() {
   // Handle duplicate template
   const handleDuplicate = (template: EmailTemplate) => {
     setSelectedTemplate(template);
+    // Find the category ID by name
+    const categoryId = categories.find(
+      (cat) => cat.cat_name === template.category
+    )?.client_cat;
+    
     setFormData({
       templateName: template.templateName + " (Copy)",
       subject: template.subject,
       templateFor: template.templateFor,
-      campaignCategory: template.category,
+      campaignCategory: categoryId ? String(categoryId) : "",
       htmlBody: template.htmlBody,
     });
     setEditMode("duplicate");
@@ -658,16 +711,27 @@ export default function EmailTemplatePage() {
                         onValueChange={(value) =>
                           setFormData({ ...formData, campaignCategory: value })
                         }
+                        disabled={categoriesLoading}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select" />
+                          <SelectValue placeholder={categoriesLoading ? "Loading..." : "Select a category"} />
                         </SelectTrigger>
                         <SelectContent className="z-9999">
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
+                          {categoriesLoading ? (
+                            <div className="p-2">
+                              <Skeleton className="h-8 w-full" />
+                            </div>
+                          ) : categoriesError ? (
+                            <div className="p-2 text-sm text-red-500">{categoriesError}</div>
+                          ) : categories.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">No categories available</div>
+                          ) : (
+                            categories.map((category) => (
+                              <SelectItem key={category.client_cat} value={String(category.client_cat)}>
+                                {category.cat_name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -823,16 +887,27 @@ export default function EmailTemplatePage() {
                         onValueChange={(value) =>
                           setFormData({ ...formData, campaignCategory: value })
                         }
+                        disabled={categoriesLoading}
                       >
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select" />
+                          <SelectValue placeholder={categoriesLoading ? "Loading..." : "Select a category"} />
                         </SelectTrigger>
                         <SelectContent className="z-9999">
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
-                          ))}
+                          {categoriesLoading ? (
+                            <div className="p-2">
+                              <Skeleton className="h-8 w-full" />
+                            </div>
+                          ) : categoriesError ? (
+                            <div className="p-2 text-sm text-red-500">{categoriesError}</div>
+                          ) : categories.length === 0 ? (
+                            <div className="p-2 text-sm text-muted-foreground">No categories available</div>
+                          ) : (
+                            categories.map((category) => (
+                              <SelectItem key={category.client_cat} value={String(category.client_cat)}>
+                                {category.cat_name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
