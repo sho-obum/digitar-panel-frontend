@@ -145,10 +145,10 @@ const getStatusColor = (status: string) => {
 };
 
 export default function EmailTemplatePage() {
-  // Mock data
-  const [templates, setTemplates] = useState<EmailTemplate[]>(
-    generateMockTemplates()
-  );
+  // State for templates - start empty, will fetch from DB
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [templatesError, setTemplatesError] = useState<string | null>(null);
 
   // Sorting state
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -177,6 +177,9 @@ export default function EmailTemplatePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+
+  // Save loading state
+  const [isSaving, setIsSaving] = useState(false);
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -207,6 +210,33 @@ export default function EmailTemplatePage() {
     };
 
     fetchCategories();
+  }, []);
+
+  // Fetch templates from database on component mount
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        setTemplatesLoading(true);
+        setTemplatesError(null);
+        // Note: You'll need to create this API endpoint to fetch templates
+        // For now, we'll use mock data or keep it empty
+        // const response = await fetch("/api/templates/email/list");
+        // if (!response.ok) throw new Error("Failed to fetch templates");
+        // const data = await response.json();
+        // setTemplates(data.templates || []);
+        
+        // For now, start with empty state
+        setTemplates([]);
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+        setTemplatesError("Failed to load templates");
+        setTemplates([]);
+      } finally {
+        setTemplatesLoading(false);
+      }
+    };
+
+    fetchTemplates();
   }, []);
 
 
@@ -271,25 +301,82 @@ export default function EmailTemplatePage() {
   };
 
   // Handle save template
-  const handleSave = () => {
-    // Find category name by client_cat id
-    const selectedCategory = categories.find(
-      (cat) => String(cat.client_cat) === String(formData.campaignCategory)
-    );
-    
-    const newTemplate: EmailTemplate = {
-      id: String(templates.length + 1),
-      templateName: formData.templateName,
-      subject: formData.subject,
-      templateFor: formData.templateFor,
-      addedAt: new Date(),
-      status: "active",
-      isDefault: false,
-      htmlBody: formData.htmlBody,
-      category: selectedCategory?.cat_name || formData.campaignCategory,
-    };
-    setTemplates([...templates, newTemplate]);
-    setIsCreateDialogOpen(false);
+  const handleSave = async () => {
+    try {
+      setIsSaving(true);
+
+      // Find category name by client_cat id
+      const selectedCategory = categories.find(
+        (cat) => String(cat.client_cat) === String(formData.campaignCategory)
+      );
+
+      // Convert "Initial" to "initial" and "Follow up" to "followup" for API
+      const templateForValue =
+        formData.templateFor === "Initial"
+          ? "initial"
+          : formData.templateFor === "Follow up"
+            ? "followup"
+            : "other";
+
+      // Prepare API payload
+      const payload = {
+        templateName: formData.templateName,
+        subject: formData.subject,
+        templateFor: templateForValue,
+        campaignCategory: formData.campaignCategory,
+        htmlBody: formData.htmlBody,
+      };
+
+      console.log("📤 Sending payload to API:", payload);
+
+      // Call API to save template
+      const response = await fetch(
+        "/api/templates/email/create-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("❌ API Error:", errorData);
+        alert(`Error: ${errorData.error || "Failed to create template"}`);
+        return;
+      }
+
+      const result = await response.json();
+      console.log("✅ API Response:", result);
+
+      // Add template to local state
+      const newTemplate: EmailTemplate = {
+        id: String(result.template.id),
+        templateName: formData.templateName,
+        subject: formData.subject,
+        templateFor: formData.templateFor,
+        addedAt: new Date(),
+        status: "active",
+        isDefault: false,
+        htmlBody: formData.htmlBody,
+        category: selectedCategory?.cat_name || formData.campaignCategory,
+      };
+
+      setTemplates([...templates, newTemplate]);
+      setIsCreateDialogOpen(false);
+
+      // Show success message
+      alert(`✅ Template "${formData.templateName}" created successfully!`);
+    } catch (error) {
+      console.error("❌ Error creating template:", error);
+      alert(
+        `Error: ${error instanceof Error ? error.message : "Failed to create template"}`
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Handle status toggle
@@ -782,16 +869,17 @@ export default function EmailTemplatePage() {
                     <Button
                       variant="ghost"
                       onClick={() => setIsCreateDialogOpen(false)}
+                      disabled={isSaving}
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleSave}
                       className="bg-black text-white hover:bg-gray-800 shadow-sm"
-                      disabled={!formData.templateName || !formData.subject}
+                      disabled={!formData.templateName || !formData.subject || isSaving}
                     >
                       <Save className="h-4 w-4 mr-2" />
-                      Save
+                      {isSaving ? "Saving..." : "Save"}
                     </Button>
                   </div>
                 </div>
