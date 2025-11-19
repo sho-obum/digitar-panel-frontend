@@ -422,7 +422,7 @@ const handleEditCategory = async () => {
       );
 
       toast.error("Failed to update category", {
-        description: error.message,
+        description: (error as Error).message,
       });
     }
 
