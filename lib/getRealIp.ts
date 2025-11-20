@@ -1,112 +1,92 @@
-import type { NextRequest } from "next/server";
+import { NextRequest } from "next/server";
 
-/**
- * Get the real external client IP — never the host/server IP.
- * 
- * ✅ Works in Node.js + Edge runtimes
- * ✅ Filters out spoofed headers and private/local addresses
- * ✅ Supports Cloudflare / Vercel / Nginx reverse proxies
- * ✅ Returns "0.0.0.0" if no valid public IP detected
- */
 export function getRealIp(req: Request | NextRequest): string {
-  let ip: string | null = null;
-
   try {
-    const trustProxy = process.env.TRUST_PROXY === "true";
+    const getHeader = (key: string) => req.headers.get(key);
 
-    // --- 1️⃣ Cloudflare & trusted CDN headers ---
-    if (trustProxy) {
-      const cfIp = req.headers.get("cf-connecting-ip");
-      if (cfIp && isPublicIp(cfIp)) return sanitizeIp(cfIp);
-
-      const forwarded = req.headers.get("x-forwarded-for");
-      if (forwarded) {
-        const parts = forwarded.split(",").map((p) => p.trim());
-        for (const candidate of parts) {
-          if (isPublicIp(candidate)) return sanitizeIp(candidate);
-        }
-      }
-
-      const realIp = req.headers.get("x-real-ip");
-      if (realIp && isPublicIp(realIp)) return sanitizeIp(realIp);
-    }
-
-    // --- 2️⃣ Edge Runtime ---
+    // 1️⃣ Vercel Edge / Cloudflare Workers / Next Middleware
     const edgeIp = (req as any).ip;
     if (edgeIp && isPublicIp(edgeIp)) return sanitizeIp(edgeIp);
 
-    // --- 3️⃣ Node.js TCP Connection ---
-    const conn =
-      (req as any)?.socket ||
-      (req as any)?.connection ||
-      (req as any)?.info ||
+    // 2️⃣ Cloudflare IP headers
+    const cfIp = getHeader("cf-connecting-ip") || getHeader("true-client-ip");
+    if (cfIp && isPublicIp(cfIp)) return sanitizeIp(cfIp);
+
+    // 3️⃣ Reverse Proxies → AWS ALB/ELB, Nginx, CloudFront
+    const xff = getHeader("x-forwarded-for");
+    if (xff) {
+      // x-forwarded-for may contain: "client, proxy1, proxy2"
+      const parts = xff.split(",").map((ip) => ip.trim());
+      for (const ip of parts) {
+        if (isPublicIp(ip)) return sanitizeIp(ip);
+      }
+    }
+
+    // 4️⃣ Nginx / Apache
+    const realIp = getHeader("x-real-ip");
+    if (realIp && isPublicIp(realIp)) return sanitizeIp(realIp);
+
+    // 5️⃣ Self-hosted Node.js → direct TCP connection
+    const socket =
+      (req as any).socket ||
+      (req as any).connection ||
+      (req as any).info ||
       null;
-    ip = conn?.remoteAddress || null;
 
-    if (ip && ip.includes("::ffff:")) ip = ip.replace("::ffff:", "");
+    let raw = socket?.remoteAddress || null;
 
-    if (ip && isPublicIp(ip)) return sanitizeIp(ip);
-  } catch (err) {
-    console.error("getRealIp error:", err);
+    if (raw) {
+      if (raw.startsWith("::ffff:")) raw = raw.replace("::ffff:", "");
+      if (isPublicIp(raw)) return sanitizeIp(raw);
+    }
+
+    // 6️⃣ Dev mode fallback
+    if (process.env.NODE_ENV === "development") {
+      return "127.0.0.1";
+    }
+
+    return "0.0.0.0";
+  } catch {
+    return "0.0.0.0";
   }
-
-  return "0.0.0.0";
 }
 
-/**
- * Check if an IP is public (not local/private).
- */
-function isPublicIp(ip?: string | null): boolean {
+/* ---------------------------------------------
+   🔍 Public IP Validator
+----------------------------------------------*/
+function isPublicIp(ip: string): boolean {
   if (!ip) return false;
 
-  ip = sanitizeIp(ip);
+  // Remove IPv6 prefix
+  if (ip.startsWith("::ffff:")) ip = ip.replace("::ffff:", "");
 
-  // Private IPv4 ranges
-  const privateIPv4 = [
-    /^10\./,                      // 10.0.0.0/8
-    /^172\.(1[6-9]|2\d|3[01])\./, // 172.16.0.0 – 172.31.255.255
-    /^192\.168\./,                // 192.168.0.0/16
-    /^127\./,                     // localhost
-  ];
-
-  // Private IPv6 & loopbacks
-  const privateIPv6 = [
+  // Reject private ranges
+  const privateRanges = [
+    /^10\./,
+    /^127\./,
+    /^192\.168\./,
+    /^172\.(1[6-9]|2\d|3[0-1])\./,
     /^::1$/,
     /^fc00:/,
-    /^fd00:/,
     /^fe80:/,
   ];
 
-  if (privateIPv4.some((r) => r.test(ip))) return false;
-  if (privateIPv6.some((r) => r.test(ip))) return false;
+  if (privateRanges.some((r) => r.test(ip))) return false;
 
-  // Must look like IPv4 or IPv6
-  const isIPv4 = /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
-  const isIPv6 = /^[0-9a-fA-F:]+$/.test(ip);
-  if (!isIPv4 && !isIPv6) return false;
+  // IPv4
+  const ipv4 = /^([0-9]{1,3}\.){3}[0-9]{1,3}$/;
+  if (ipv4.test(ip)) return true;
 
-  return true;
+  // IPv6
+  const ipv6 =
+    /^(([0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4})$/;
+
+  return ipv6.test(ip);
 }
 
-/**
- * Normalize IPv6/IPv4 formatting, strip ports, and remove zone IDs.
- */
-function sanitizeIp(raw: string): string {
-  let ip = raw.trim();
-
-  // Remove port (e.g., "192.168.0.1:3000")
-  if (ip.includes(":") && ip.includes(".")) {
-    ip = ip.split(":")[0];
-  }
-
-  // Remove IPv6 brackets or zone identifiers (e.g., "[::1]", "fe80::1%eth0")
-  ip = ip.replace(/^\[|\]$/g, "").replace(/%.+$/, "");
-
-  // Normalize IPv6-wrapped IPv4 "::ffff:192.0.2.128"
-  ip = ip.replace(/^::ffff:/, "");
-
-  // Map localhost
-  if (ip === "::1") ip = "127.0.0.1";
-
-  return ip;
+/* ---------------------------------------------
+   🧼 Remove IPv6 prefix
+----------------------------------------------*/
+function sanitizeIp(ip: string): string {
+  return ip.replace("::ffff:", "");
 }
