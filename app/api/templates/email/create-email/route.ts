@@ -1,10 +1,10 @@
 import { authOptions } from "@/lib/auth";
 import { pool } from "@/lib/db";
 import { getRealIp } from "@/lib/getRealIp";
-import { ResultSetHeader } from "mysql2";
+import { log } from "@/lib/logger";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { getServerSession } from "next-auth";
-import Email from "next-auth/providers/email";
-import { NextResponse, NextRequest, userAgent } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 
 interface CreateEmailTemplateRequest {
   templateName: string;
@@ -27,25 +27,50 @@ interface EmailTemplateResponse {
   error?: string;
 }
 
+export async function GET(request: NextRequest): Promise<NextResponse<{ success: boolean; templates?: RowDataPacket[]; error?: string; }>> {
+  const userIp = getRealIp(request);
+  const session = await getServerSession(authOptions);
+  const userID = session?.user?.id || null;
+  log.info("GET /api/templates/email/create-email : Fetching email templates", { userIP: userIp, userAgent: request.headers.get("user-agent"), userID: userID || null, });
+  try {
+    if (!userID) {
+      log.warn("Unauthorized Request to fetch email templates", { userIP: userIp, userAgent: request.headers.get("user-agent"), userID: null});
+      return NextResponse.json({ success: false, error: "Unauthorized" },{ status: 401 });
+    }
+    const [rows] = await pool.execute<RowDataPacket[]>(
+      `SELECT  uet.id, uet.name AS templateName, uet.subject, uet.template_for AS templateFor, uet.body_html AS htmlBody, uet.category_id, cat.name as category, uet.is_default AS isDefault, uet.status, uet.created_at AS addedAt
+      FROM user_email_templates uet JOIN template_categories cat ON uet.category_id = cat.id WHERE uet.user_id = ?
+      ORDER BY id DESC`, [userID]
+    );
+
+    return NextResponse.json({
+      success: true,
+      templates: rows,
+    });
+  } catch (error: any) {
+    log.error("GET /api/templates/email/create-email :Error fetching email templates", { error: error instanceof Error ? error.message : String(error), userIP: userIp, userAgent: request.headers.get("user-agent"), userID: userID || null, });
+    return NextResponse.json(
+      { success: false, error: "Failed to fetch templates" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest
 ): Promise<NextResponse<EmailTemplateResponse>> {
   const userIp = getRealIp(request);
+  const session = await getServerSession(authOptions);
+  const userID = session?.user?.id || null;
+  log.info("POST /api/templates/email/create-email Creating new email template", { userIP: userIp, userAgent: request.headers.get("user-agent"), userID: userID || null, });
   try {
     //parse data
     const body: CreateEmailTemplateRequest = await request.json();
     //user auth?
-    const session = await getServerSession(authOptions);
-    const userID = session?.user?.id || null;
-    const email = session?.user?.email || null;
 
     // if user is not auth - REJECT REQUEST
     if (!userID) {
-      console.warn("Unauthorized Request to create email template", {
-        userAgent: request.headers.get("user-agent"),
-        userIP: userIp,
-      });
-
+      log.warn("Unauthorized Request to create email template", { userIP: userIp, userAgent: request.headers.get("user-agent"), userID: null, });
       return NextResponse.json(
         { success: false, message: "Unauthorized", error: "Unauthorized" },
         { status: 401 }
@@ -77,14 +102,10 @@ export async function POST(
     const htmlBody = body.htmlBody.trim();
     const templateFor = body.templateFor.toLowerCase();
 
-    //case :: if tempalte with the same name already exist for user
-
-    //insert into db
-
     const [result] = await pool.execute<ResultSetHeader>(
       `INSERT INTO user_email_templates 
-       (user_id, category_id, name, template_for, subject, body_html, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW())`,
+       (user_id, category_id, name, template_for, subject, body_html, status, created_at, updated_at, user_ip)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', NOW(), NOW(), ?)`,
       [
         userID,
         body.campaignCategory,
@@ -92,19 +113,11 @@ export async function POST(
         templateFor,
         subject,
         htmlBody,
+        userIp,
       ]
     );
 
-     console.info("Email template created successfully", {
-      templateId: result.insertId,
-      templateName: templateName,
-      userId: userID,
-      userIP: userIp,
-    });
-
-    // return success response
-
-     return NextResponse.json(
+    return NextResponse.json(
       {
         success: true,
         message: "Email template created successfully",
@@ -120,13 +133,7 @@ export async function POST(
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("POST /api/templates/email/create-email error:", {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-      userAgent: request.headers.get("user-agent"),
-      userIP: userIp,
-    });
-
+    log.error("POST /api/templates/email/create-email error:", { error: errorMessage, userIP: userIp, userAgent: request.headers.get("user-agent"), userID: session?.user?.id || null, });  
     return NextResponse.json(
       {
         success: false,

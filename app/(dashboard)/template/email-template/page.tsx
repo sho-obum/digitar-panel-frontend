@@ -218,18 +218,35 @@ export default function EmailTemplatePage() {
       try {
         setTemplatesLoading(true);
         setTemplatesError(null);
-        // Note: You'll need to create this API endpoint to fetch templates
-        // For now, we'll use mock data or keep it empty
-        // const response = await fetch("/api/templates/email/list");
-        // if (!response.ok) throw new Error("Failed to fetch templates");
-        // const data = await response.json();
-        // setTemplates(data.templates || []);
-        
-        // For now, start with empty state
-        setTemplates([]);
-      } catch (error) {
-        console.error("Error fetching templates:", error);
-        setTemplatesError("Failed to load templates");
+
+        const response = await fetch("/api/templates/email/create-email");
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || "Failed to load templates");
+        }
+
+        const formatted = data.templates.map((t: any) => ({
+          id: String(t.id),
+          templateName: t.templateName,
+          subject: t.subject,
+          templateFor:
+            t.templateFor === "initial"
+              ? "Initial"
+              : t.templateFor === "followup"
+                ? "Follow up"
+                : "Other",
+          htmlBody: t.htmlBody,
+          category: t.category,
+          isDefault: t.isDefault === 1,
+          status: t.status,
+          addedAt: new Date(t.addedAt),
+        }));
+
+        setTemplates(formatted);
+      } catch (error: any) {
+        console.error("Error loading templates:", error);
+        setTemplatesError(error.message);
         setTemplates([]);
       } finally {
         setTemplatesLoading(false);
