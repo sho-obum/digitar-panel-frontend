@@ -17,7 +17,7 @@ interface CreateEmailTemplateRequest {
 interface EmailTemplateResponse {
   success: boolean;
   message: string;
-  tempalte?: {
+  template?: {
     id: number;
     name: string;
     subject: string;
@@ -39,8 +39,7 @@ export async function GET(request: NextRequest): Promise<NextResponse<{ success:
     }
     const [rows] = await pool.execute<RowDataPacket[]>(
       `SELECT  uet.id, uet.name AS templateName, uet.subject, uet.template_for AS templateFor, uet.body_html AS htmlBody, uet.category_id, cat.name as category, uet.is_default AS isDefault, uet.status, uet.created_at AS addedAt
-      FROM user_email_templates uet JOIN template_categories cat ON uet.category_id = cat.id WHERE uet.user_id = ?
-      ORDER BY id DESC`, [userID]
+      FROM user_email_templates uet JOIN template_categories cat ON uet.category_id = cat.id WHERE uet.is_delete='0' AND uet.user_id = ?`, [userID]
     );
 
     return NextResponse.json({
@@ -140,7 +139,7 @@ export async function POST(
         message: "Failed to create email template",
         error: errorMessage,
       },
-      { status: 500 } // 500 = Server error
+      { status: 500 } 
     );
   }
 }

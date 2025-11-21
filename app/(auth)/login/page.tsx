@@ -372,8 +372,8 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div></div>}>
       <LoginContent />
-    </Suspense>
+     </Suspense>
   );
 }
