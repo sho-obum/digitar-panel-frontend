@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -160,6 +161,7 @@ export default function EmailTemplatePage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] =
     useState<EmailTemplate | null>(null);
   const [editMode, setEditMode] = useState<"edit" | "duplicate">("duplicate");
@@ -180,6 +182,10 @@ export default function EmailTemplatePage() {
 
   // Save loading state
   const [isSaving, setIsSaving] = useState(false);
+
+  // Loading states for individual actions
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); 
+  const [isTogglingStatus, setIsTogglingStatus] = useState<string | null>(null); 
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -344,7 +350,7 @@ export default function EmailTemplatePage() {
         htmlBody: formData.htmlBody,
       };
 
-      console.log("📤 Sending payload to API:", payload);
+      console.log(" Sending payload to API:", payload);
 
       // Call API to save template
       const response = await fetch(
@@ -360,13 +366,13 @@ export default function EmailTemplatePage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error("❌ API Error:", errorData);
-        alert(`Error: ${errorData.error || "Failed to create template"}`);
+        console.error("API Error:", errorData);
+        toast.error(errorData.error || "Failed to create template");
         return;
       }
 
       const result = await response.json();
-      console.log("✅ API Response:", result);
+      console.log(" API Response:", result);
 
       // Add template to local state
       const newTemplate: EmailTemplate = {
@@ -385,11 +391,11 @@ export default function EmailTemplatePage() {
       setIsCreateDialogOpen(false);
 
       // Show success message
-      alert(`✅ Template "${formData.templateName}" created successfully!`);
+      toast.success(`Template "${formData.templateName}" created successfully!`);
     } catch (error) {
-      console.error("❌ Error creating template:", error);
-      alert(
-        `Error: ${error instanceof Error ? error.message : "Failed to create template"}`
+      console.error(" Error creating template:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create template"
       );
     } finally {
       setIsSaving(false);
@@ -402,18 +408,110 @@ export default function EmailTemplatePage() {
     setIsStatusDialogOpen(true);
   };
 
-  const confirmStatusToggle = () => {
+  const confirmStatusToggle = async () => {
     if (selectedTemplate) {
-      setTemplates(
-        templates.map((t) =>
-          t.id === selectedTemplate.id
-            ? { ...t, status: t.status === "active" ? "inactive" : "active" }
-            : t
-        )
-      );
+      setIsTogglingStatus(selectedTemplate.id);
+      try {
+        // Determine new status
+        const newStatus = selectedTemplate.status === "active" ? "inactive" : "active";
+        
+        console.log(" Updating template status:", selectedTemplate.id, "to", newStatus);
+
+        // Call API to update status
+        const response = await fetch(
+          "/api/templates/email/update",
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              template_id: Number(selectedTemplate.id),
+              status: newStatus,
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error(" API Error:", errorData);
+          toast.error(errorData.error || "Failed to update status");
+          return;
+        }
+
+        const result = await response.json();
+        console.log(" API Response:", result);
+
+        // Update frontend state
+        setTemplates(
+          templates.map((t) =>
+            t.id === selectedTemplate.id
+              ? { ...t, status: newStatus as "active" | "inactive" }
+              : t
+          )
+        );
+
+        toast.success(`Template ${newStatus} successfully!`);
+      } catch (error) {
+        console.error(" Error updating status:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to update status"
+        );
+      } finally {
+        setIsTogglingStatus(null);
+      }
     }
     setIsStatusDialogOpen(false);
     setSelectedTemplate(null);
+  };
+
+  // Handle delete template confirmation
+  const confirmDelete = async () => {
+    if (selectedTemplate) {
+      setIsDeleting(selectedTemplate.id);
+      try {
+        console.log(" Deleting template ID:", selectedTemplate.id);
+        
+        // Call DELETE API
+        const response = await fetch(
+          "/api/templates/email/update",
+          {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              template_id: Number(selectedTemplate.id),
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error("API Error:", errorData);
+          toast.error(errorData.error || "Failed to delete template");
+          return;
+        }
+
+        const result = await response.json();
+        console.log(" API Response:", result);
+
+        // Remove from frontend state
+        setTemplates(
+          templates.filter((t) => t.id !== selectedTemplate.id)
+        );
+        toast.success(`Template "${selectedTemplate.templateName}" deleted successfully!`);
+      } catch (error) {
+        console.error(" Error deleting template:", error);
+        toast.error(
+          error instanceof Error ? error.message : "Failed to delete template"
+        );
+      } finally {
+        setIsDeleting(null);
+        setIsDeleteConfirmOpen(false);
+        setSelectedTemplate(null);
+      }
+    }
   };
 
   // Handle edit template
@@ -566,10 +664,10 @@ export default function EmailTemplatePage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedTemplates.map((template) => (
+                sortedTemplates.map((template, index) => (
                   <TableRow key={template.id}>
                     <TableCell className="font-medium text-center">
-                      {template.id}
+                      {index + 1}
                     </TableCell>
                     <TableCell className="text-center">
                       {template.templateName}
@@ -588,10 +686,23 @@ export default function EmailTemplatePage() {
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge
-                        className={getStatusColor(template.status)}
-                        onClick={() => handleStatusClick(template)}
+                        className={`${getStatusColor(template.status)} ${
+                          isTogglingStatus === template.id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                        }`}
+                        onClick={() => {
+                          if (isTogglingStatus !== template.id) {
+                            handleStatusClick(template);
+                          }
+                        }}
                       >
-                        {template.status}
+                        {isTogglingStatus === template.id ? (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="inline-block animate-spin h-3 w-3 border-2 border-current border-t-transparent rounded-full"></span>
+                            {template.status}
+                          </span>
+                        ) : (
+                          template.status
+                        )}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-center">
@@ -713,14 +824,18 @@ export default function EmailTemplatePage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 h-9 w-9 p-0"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 h-9 w-9 p-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isDeleting === template.id}
                           onClick={() => {
-                            setTemplates(
-                              templates.filter((t) => t.id !== template.id)
-                            );
+                            setSelectedTemplate(template);
+                            setIsDeleteConfirmOpen(true);
                           }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {isDeleting === template.id ? (
+                            <span className="inline-block animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>
@@ -1063,38 +1178,98 @@ export default function EmailTemplatePage() {
                     <Button
                       variant="ghost"
                       onClick={() => setIsEditDialogOpen(false)}
+                      disabled={isSaving}
                     >
                       Cancel
                     </Button>
                     <Button
-                      onClick={() => {
+                      onClick={async () => {
                         if (editMode === "edit" && selectedTemplate) {
-                          // Update existing template
-                          setTemplates(
-                            templates.map((t) =>
-                              t.id === selectedTemplate.id
-                                ? {
-                                    ...t,
-                                    templateName: formData.templateName,
-                                    subject: formData.subject,
-                                    templateFor: formData.templateFor,
-                                    category: formData.campaignCategory,
-                                    htmlBody: formData.htmlBody,
-                                  }
-                                : t
-                            )
-                          );
+                          // Update existing template via API
+                          try {
+                            setIsSaving(true);
+                            
+                            const templateForValue =
+                              formData.templateFor === "Initial"
+                                ? "initial"
+                                : formData.templateFor === "Follow up"
+                                  ? "followup"
+                                  : "other";
+
+                            // Prepare payload + template_id
+                            const updatePayload = {
+                              template_id: Number(selectedTemplate.id),
+                              templateName: formData.templateName,
+                              subject: formData.subject,
+                              templateFor: templateForValue,
+                              campaignCategory: formData.campaignCategory,
+                              htmlBody: formData.htmlBody,
+                            };
+
+                            console.log(" Sending UPDATE to API:", updatePayload);
+
+                            // Call API to update template
+                            const response = await fetch(
+                              "/api/templates/email/update",
+                              {
+                                method: "POST",
+                                headers: {
+                                  "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify(updatePayload),
+                              }
+                            );
+
+                            if (!response.ok) {
+                              const errorData = await response.json();
+                              console.error(" API Error:", errorData);
+                              toast.error(errorData.error || "Failed to update template");
+                              throw new Error(errorData.error || "Update failed");
+                            }
+
+                            const result = await response.json();
+                            console.log("✅ API Response:", result);
+
+                            // Update frontend state with new data
+                            const categoryName = categories.find(
+                              (cat) => String(cat.client_cat) === String(formData.campaignCategory)
+                            )?.cat_name;
+
+                            setTemplates(
+                              templates.map((t) =>
+                                t.id === selectedTemplate.id
+                                  ? {
+                                      ...t,
+                                      templateName: formData.templateName,
+                                      subject: formData.subject,
+                                      templateFor: formData.templateFor,
+                                      htmlBody: formData.htmlBody,
+                                      category: categoryName || formData.campaignCategory,
+                                    }
+                                  : t
+                              )
+                            );
+
+                            setIsEditDialogOpen(false);
+                            toast.success(`Template updated successfully!`);
+                            console.log(" Template updated in database");
+                          } catch (error) {
+                            console.error(" Error updating template:", error);
+                            toast.error(error instanceof Error ? error.message : "Failed to update");
+                          } finally {
+                            setIsSaving(false);
+                          }
                         } else {
-                          // Create duplicate
+                          // Create duplicate - use handleSave
                           handleSave();
+                          setIsEditDialogOpen(false);
                         }
-                        setIsEditDialogOpen(false);
                       }}
                       className="bg-black text-white hover:bg-gray-800 shadow-sm"
-                      disabled={!formData.templateName || !formData.subject}
+                      disabled={!formData.templateName || !formData.subject || isSaving}
                     >
                       <Save className="h-4 w-4 mr-2" />
-                      {editMode === "edit" ? "Update" : "Save"}
+                      {isSaving ? (editMode === "edit" ? "Updating..." : "Saving...") : editMode === "edit" ? "Update" : "Save"}
                     </Button>
                   </div>
                 </div>
@@ -1122,14 +1297,65 @@ export default function EmailTemplatePage() {
             <Button
               variant="ghost"
               onClick={() => setIsStatusDialogOpen(false)}
+              disabled={isTogglingStatus !== null}
             >
               Cancel
             </Button>
             <Button
               onClick={confirmStatusToggle}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm"
+              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isTogglingStatus !== null}
             >
-              Confirm
+              {isTogglingStatus !== null ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></span>
+                  Updating...
+                </span>
+              ) : (
+                "Confirm"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Template</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the template "{selectedTemplate?.templateName}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setIsDeleteConfirmOpen(false);
+                setSelectedTemplate(null);
+              }}
+              disabled={isDeleting !== null}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isDeleting !== null}
+            >
+              {isDeleting !== null ? (
+                <span className="inline-flex items-center gap-2">
+                  <span className="inline-block animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full"></span>
+                  Deleting...
+                </span>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
