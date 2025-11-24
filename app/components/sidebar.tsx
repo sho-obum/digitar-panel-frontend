@@ -15,6 +15,7 @@ import {
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
+import { NavPersonalBlock } from "@/components/nav-personal-block"
 import { TeamSwitcher } from "@/components/team-switcher"
 import {
   Sidebar,
@@ -140,6 +141,13 @@ const data = {
     },
    
   ],
+  personalBlock: [
+    {
+      name: "Appsflyer Dashboard",
+      url: "/digitar-personal-block/appsflyer-dashboard",
+      icon: PieChart,
+    },
+  ],
 }
 
 export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
@@ -151,6 +159,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
       <SidebarContent>
         <NavMain items={data.navMain} />
         <NavProjects projects={data.projects} />
+        <NavPersonalBlock items={data.personalBlock} />
       </SidebarContent>
       <SidebarFooter>
         {/* Profile moved to header - footer now empty */}
