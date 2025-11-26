@@ -153,7 +153,7 @@ export const authOptions: AuthOptions = {
 
       // Refresh access token
       try {
-        const [rows]: any = await pool.query("SELECT * FROM users WHERE id = ?", [token.id]);
+        const [rows]: any = await pool.query("SELECT u.*, r.name as role FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?", [token.id]);
         const userFromDB = rows?.[0];
         if (!userFromDB) throw new Error("User not found during refresh");
 
