@@ -22,8 +22,9 @@ import {
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Separator } from "@/components/ui/separator"
 import { useTheme } from "next-themes"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useMemo, useState } from "react"
+import { useRouter, useSelectedLayoutSegments } from "next/navigation"
+import { generateBreadcrumbs } from "@/lib/routeMetadata"
 
 interface HeaderProps {
   breadcrumbs?: {
@@ -35,9 +36,18 @@ interface HeaderProps {
 
 export default function Header({ breadcrumbs = [] }: HeaderProps) {
   const { theme, setTheme } = useTheme()
-  const [notifications, setNotifications] = useState(3) // Example notification count
+  const [notifications, setNotifications] = useState(3)
   const { data: session } = useSession();
   const router = useRouter();
+  const segments = useSelectedLayoutSegments();
+
+  // Use useMemo to generate breadcrumbs from URL segments
+  // This avoids the infinite loop issue with useEffect and useSelectedLayoutSegments
+  const dynamicBreadcrumbs = useMemo(() => {
+    // Filter out the "(dashboard)" segment as it's not visible in the URL
+    const filteredSegments = segments.filter(seg => seg !== "(dashboard)");
+    return generateBreadcrumbs(filteredSegments);
+  }, [segments.join(",")]);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark")
@@ -53,10 +63,10 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
         />
         
         {/* Breadcrumb Navigation */}
-        {breadcrumbs.length > 0 && (
+        {dynamicBreadcrumbs.length > 0 && (
           <Breadcrumb>
             <BreadcrumbList>
-              {breadcrumbs.map((breadcrumb, index) => (
+              {dynamicBreadcrumbs.map((breadcrumb, index) => (
                 <div key={index} className="flex items-center">
                   <BreadcrumbItem className={index === 0 ? "hidden md:block" : ""}>
                     {breadcrumb.isActive ? (
@@ -67,7 +77,7 @@ export default function Header({ breadcrumbs = [] }: HeaderProps) {
                       </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>
-                  {index < breadcrumbs.length - 1 && (
+                  {index < dynamicBreadcrumbs.length - 1 && (
                     <BreadcrumbSeparator className="hidden md:block" />
                   )}
                 </div>
