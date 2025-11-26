@@ -147,8 +147,15 @@ const data = {
     },
      {
       name: "Settings",
-      url: "/settings",
+      url: "#",
       icon: Settings2,
+      items: [
+        {
+          title: "Email Configuration",
+          url: "/settings/email-configuration",
+        },
+        
+      ],
     },
   ],
   
