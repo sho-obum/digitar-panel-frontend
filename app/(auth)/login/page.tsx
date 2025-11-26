@@ -157,7 +157,7 @@ function LoginContent() {
           </form>
 
           {/* Test Credentials Info */}
-          <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-4 space-y-2">
+          {/* <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-4 space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-blue-500"></div>
               <p className="text-sm font-semibold text-blue-900 dark:text-blue-300">Demo Account Login Credentials</p>
@@ -166,7 +166,7 @@ function LoginContent() {
               <p>Email: <span className="font-mono font-semibold">anuj@digitarmedia.com</span></p>
               <p>Password: <span className="font-mono font-semibold">Anuj</span></p>
             </div>
-          </div>
+          </div> */}
 
           <p className="text-center text-sm text-muted-foreground">
             Don't have an account?{" "}

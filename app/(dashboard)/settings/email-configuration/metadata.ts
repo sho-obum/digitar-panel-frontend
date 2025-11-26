@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { generatePageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = generatePageMetadata({
-  title: "Email Configuration",
-  description: "Manage your SMTP email configurations and sender settings",
+  title: "Email Settings",
+  description: "Configure SMTP servers, sender addresses, and email delivery settings",
   keywords: [
     "email configuration",
     "SMTP settings",

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { generatePageMetadata } from "@/lib/metadata";
 
 export const metadata: Metadata = generatePageMetadata({
-  title: "AppFlyer Dashboard",
-  description: "View campaign performance analytics from AppFlyer",
+  title: "Analytics Dashboard",
+  description: "Real-time campaign performance analytics and insights from AppFlyer",
   keywords: ["appsflyer", "analytics", "campaign performance", "dashboard"],
 });
