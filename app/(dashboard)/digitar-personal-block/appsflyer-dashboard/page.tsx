@@ -96,8 +96,8 @@ type CampDetailsItem = {
   pid: string;
   clicks: string;
   installs: string;
-  p360Installs: number;
-  p360Events: number;
+  p360installs: string;
+  p360event: string;
 };
 
 type CampaignPerformanceItem = {
@@ -106,9 +106,9 @@ type CampaignPerformanceItem = {
   campaigns?: string;
   clicks: string;
   installs: string;
-  events: string;
-  p360Installs: number;
-  p360Events: number;
+  event: string;
+  p360installs: string;
+  p360event: string;
 };
 
 export default function AppsflyerDashboard() {
@@ -195,12 +195,9 @@ export default function AppsflyerDashboard() {
         const result = await response.json();
         if (result.success && Array.isArray(result.data)) {
           setCampaignList(result.data);
-          // Auto-select the first campaign to load data
-          if (result.data.length > 0) {
-            const firstCampaign = result.data[0];
-            setSelectedCampaign(firstCampaign.campaign);
-            setSelectedBundleId(firstCampaign.id);
-          }
+          // Set default selection to "all" campaigns for Table 2
+          setSelectedCampaign("all");
+          setSelectedBundleId("");
         } else {
           toast.error('Invalid campaign data format');
         }
@@ -227,6 +224,8 @@ export default function AppsflyerDashboard() {
             source: 'all',
             page: currentPageTable1,
             limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
 
@@ -248,9 +247,9 @@ export default function AppsflyerDashboard() {
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
             ...item,
             campaign: item.campaigns || item.bundleid,
-            events: item.installs,
-            p360Installs: 2,
-            p360Events: 3,
+            event: item.event,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
           }));
           setCampaignPerformance(enrichedData);
           setTotalPagesTable1(result.total_pages || 0);
@@ -298,6 +297,8 @@ export default function AppsflyerDashboard() {
             source: 'all',
             page: currentPageTable1,
             limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
 
@@ -316,9 +317,9 @@ export default function AppsflyerDashboard() {
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
             ...item,
             campaign: item.campaigns || item.bundleid,
-            events: item.installs,
-            p360Installs: 2,
-            p360Events: 3,
+            event: item.event,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
           }));
           setCampaignPerformance(enrichedData);
           setTotalPagesTable1(result.total_pages || 0);
@@ -390,12 +391,9 @@ export default function AppsflyerDashboard() {
       const startTime = performance.now();
       try {
         // Build the request payload
+        // Always use "all" for campaigns in Table 2, only filter by sources
         let bundleId = "all";
         let source = "all";
-
-        if (selectedCampaign && selectedCampaign !== "all") {
-          bundleId = selectedBundleId;
-        }
 
         if (selectedSources.length > 0) {
           source = selectedSources.join(",");
@@ -409,11 +407,12 @@ export default function AppsflyerDashboard() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-           
             bundle_id: bundleId,
             source: source,
             page: currentPageTable2,
             limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
 
@@ -432,11 +431,15 @@ export default function AppsflyerDashboard() {
         
         if (result.success && Array.isArray(result.data)) {
           console.log(`[Table 2] Processing ${result.data.length} rows...`);
-          // Add hardcoded p360 values
+          // Map API response to component type - use actual p360 values from API
           const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
-            ...item,
-            p360Installs: 2,
-            p360Events: 3,
+            bundleid: item.bundleid,
+            source: item.source,
+            pid: item.pid,
+            clicks: item.clicks,
+            installs: item.installs,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
           }));
           setCampDetails(enrichedData);
           // Update pagination info from response
@@ -566,8 +569,8 @@ export default function AppsflyerDashboard() {
   const summaryStats = useMemo(() => {
     const totalClicks = campaignPerformance.reduce((sum, item) => sum + parseInt(item.clicks), 0);
     const totalInstalls = campaignPerformance.reduce((sum, item) => sum + parseInt(item.installs), 0);
-    const totalEvents = campaignPerformance.reduce((sum, item) => sum + parseInt(item.events), 0);
-    const totalP360Installs = campaignPerformance.reduce((sum, item) => sum + item.p360Installs, 0);
+    const totalEvents = campaignPerformance.reduce((sum, item) => sum + parseInt(item.event), 0);
+    const totalP360Installs = campaignPerformance.reduce((sum, item) => sum + parseInt(item.p360installs), 0);
     
     const conversionRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
     const eventRate = totalInstalls > 0 ? (totalEvents / totalInstalls) * 100 : 0;
@@ -639,8 +642,8 @@ export default function AppsflyerDashboard() {
       pid: item.pid,
       clicks: parseInt(item.clicks),
       installs: parseInt(item.installs),
-      p360Installs: item.p360Installs,
-      p360Events: item.p360Events,
+      p360Installs: parseInt(item.p360installs),
+      p360Events: parseInt(item.p360event),
     }));
 
     // Apply sorting
@@ -675,9 +678,9 @@ export default function AppsflyerDashboard() {
         row.bundleid,
         row.clicks,
         row.installs,
-        row.events,
-        row.p360Installs,
-        row.p360Events,
+        row.event,
+        row.p360installs,
+        row.p360event,
       ]),
     ]
       .map(row => row.join(","))
@@ -1027,29 +1030,29 @@ export default function AppsflyerDashboard() {
                       </TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
-                        onClick={() => handleSort("events")}
+                        onClick={() => handleSort("event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           Events
-                          {getSortIcon("events", sortConfig)}
+                          {getSortIcon("event", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
-                        onClick={() => handleSort("p360Installs")}
+                        onClick={() => handleSort("p360installs")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           P360 Installs
-                          {getSortIcon("p360Installs", sortConfig)}
+                          {getSortIcon("p360installs", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
-                        onClick={() => handleSort("p360Events")}
+                        onClick={() => handleSort("p360event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           P360 Events
-                          {getSortIcon("p360Events", sortConfig)}
+                          {getSortIcon("p360event", sortConfig)}
                         </div>
                       </TableHead>
                     </TableRow>
@@ -1094,16 +1097,16 @@ export default function AppsflyerDashboard() {
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-semibold">
-                            {parseInt(row.events).toLocaleString()}
+                            {parseInt(row.event).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right bg-purple-500/5">
                             <span className="font-medium text-purple-600 dark:text-purple-400">
-                              {row.p360Installs.toLocaleString()}
+                              {parseInt(row.p360installs).toLocaleString()}
                             </span>
                           </TableCell>
                           <TableCell className="text-right bg-purple-500/5">
                             <span className="font-medium text-purple-600 dark:text-purple-400">
-                              {row.p360Events.toLocaleString()}
+                              {parseInt(row.p360event).toLocaleString()}
                             </span>
                           </TableCell>
                         </TableRow>
