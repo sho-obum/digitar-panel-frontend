@@ -14,7 +14,7 @@ const publicRoutes = [
   "/api/app-detail",
   "/api/admin/signup",
   "/public",
-  "/favicon.ico"
+  "/favicon.ico",
 ];
 
 // Check if request matches public route
