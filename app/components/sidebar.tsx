@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
+import { NavAdmin } from "@/components/nav-admin"
 import { NavProjects } from "@/components/nav-projects"
 import { NavPersonalBlock } from "@/components/nav-personal-block"
 import { TeamSwitcher } from "@/components/team-switcher"
@@ -128,19 +129,29 @@ const data = {
       ],
     },
   ],
-  projects: [
+  adminItems: [
     {
+      name: "Admin",
+      url: "#",
+      icon: Users,
+      items: [
+        {
+          title: "Teams",
+          url: "/admin-teammanagement",
+        },
+        {
+          title: "Roles",
+          url: "/admin-roleaccess",
+        },
+      ],
+    },
+     {
       name: "Settings",
       url: "/settings",
       icon: Settings2,
     },
-    {
-      name: "Team Management",
-      url: "/admin-teammanagement",
-      icon: Users,
-    },
-   
   ],
+  
   personalBlock: [
     {
       name: "Appsflyer Dashboard",
@@ -158,7 +169,7 @@ export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sid
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
+        <NavAdmin items={data.adminItems} />
         <NavPersonalBlock items={data.personalBlock} />
       </SidebarContent>
       <SidebarFooter>

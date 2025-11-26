@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import {
   Table,
   TableBody,
@@ -73,194 +73,78 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Mock data - will be replaced with real array later
-const mockData = [
-  {
-    id: 1,
-    campaignName: "Summer Campaign 2024",
-    bundleId: "com.example.summer.app",
-    clicks: 15420,
-    installs: 3280,
-    events: 1240,
-    p360Installs: 892,
-    p360Events: 456,
-    image: "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400&h=400&fit=crop",
-    category: "E-commerce",
-    startDate: "2024-06-01",
-    endDate: "2024-08-31",
-    description: "Summer promotional campaign targeting mobile users",
-  },
-  {
-    id: 2,
-    campaignName: "Winter Promo",
-    bundleId: "com.example.winter.app",
-    clicks: 22150,
-    installs: 5640,
-    events: 2150,
-    p360Installs: 1523,
-    p360Events: 782,
-    image: "https://images.unsplash.com/photo-1516937941344-00b4e0337589?w=400&h=400&fit=crop",
-    category: "Retail",
-    startDate: "2024-12-01",
-    endDate: "2025-01-31",
-    description: "Winter holiday promotional campaign with special offers",
-  },
-  {
-    id: 3,
-    campaignName: "Holiday Blast",
-    bundleId: "com.example.holiday.app",
-    clicks: 18900,
-    installs: 4220,
-    events: 1890,
-    p360Installs: 1105,
-    p360Events: 610,
-    image: "https://images.unsplash.com/photo-1512909006721-3d6018887383?w=400&h=400&fit=crop",
-    category: "Entertainment",
-    startDate: "2024-11-15",
-    endDate: "2024-12-31",
-    description: "Holiday season mega campaign with gift promotions",
-  },
-  {
-    id: 4,
-    campaignName: "Flash Sale",
-    bundleId: "com.example.flash.app",
-    clicks: 9850,
-    installs: 2100,
-    events: 945,
-    p360Installs: 567,
-    p360Events: 298,
-    image: "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=400&h=400&fit=crop",
-    category: "Shopping",
-    startDate: "2024-09-10",
-    endDate: "2024-09-12",
-    description: "Limited time flash sale event - 48 hours only",
-  },
-  {
-    id: 5,
-    campaignName: "Brand Awareness",
-    bundleId: "com.example.brand.app",
-    clicks: 31200,
-    installs: 7890,
-    events: 3450,
-    p360Installs: 2341,
-    p360Events: 1203,
-    image: "https://images.unsplash.com/photo-1557821552-17105176677c?w=400&h=400&fit=crop",
-    category: "Marketing",
-    startDate: "2024-01-01",
-    endDate: "2024-12-31",
-    description: "Year-long brand awareness and market penetration campaign",
-  },
-];
-
-// Mock detailed data for second table
-const mockDetailedData = [
-  {
-    id: 1,
-    campaignName: "Summer Campaign 2024",
-    source: "Google Ads",
-    pid: "google_summer_001",
-    clicks: 5200,
-    installs: 1100,
-    p360Installs: 300,
-    p360Events: 150,
-  },
-  {
-    id: 2,
-    campaignName: "Summer Campaign 2024",
-    source: "Facebook Ads",
-    pid: "fb_summer_002",
-    clicks: 4100,
-    installs: 950,
-    p360Installs: 280,
-    p360Events: 140,
-  },
-  {
-    id: 3,
-    campaignName: "Summer Campaign 2024",
-    source: "Instagram Ads",
-    pid: "ig_summer_003",
-    clicks: 3200,
-    installs: 780,
-    p360Installs: 200,
-    p360Events: 100,
-  },
-  {
-    id: 4,
-    campaignName: "Summer Campaign 2024",
-    source: "TikTok Ads",
-    pid: "tt_summer_004",
-    clicks: 2920,
-    installs: 450,
-    p360Installs: 112,
-    p360Events: 66,
-  },
-  {
-    id: 5,
-    campaignName: "Winter Promo",
-    source: "Google Ads",
-    pid: "google_winter_001",
-    clicks: 7100,
-    installs: 1850,
-    p360Installs: 520,
-    p360Events: 270,
-  },
-  {
-    id: 6,
-    campaignName: "Winter Promo",
-    source: "Facebook Ads",
-    pid: "fb_winter_002",
-    clicks: 6200,
-    installs: 1620,
-    p360Installs: 450,
-    p360Events: 230,
-  },
-  {
-    id: 7,
-    campaignName: "Winter Promo",
-    source: "LinkedIn Ads",
-    pid: "li_winter_003",
-    clicks: 5300,
-    installs: 1520,
-    p360Installs: 420,
-    p360Events: 215,
-  },
-  {
-    id: 8,
-    campaignName: "Holiday Blast",
-    source: "Google Ads",
-    pid: "google_holiday_001",
-    clicks: 6500,
-    installs: 1400,
-    p360Installs: 380,
-    p360Events: 195,
-  },
-  {
-    id: 9,
-    campaignName: "Holiday Blast",
-    source: "Pinterest Ads",
-    pid: "pinterest_holiday_002",
-    clicks: 5800,
-    installs: 1320,
-    p360Installs: 360,
-    p360Events: 185,
-  },
-];
+// No mock data - all data is fetched from APIs
 
 type SortConfig = {
   key: string | null;
   direction: "asc" | "desc";
 };
 
+type CampaignListItem = {
+  id: string;
+  campaign: string;
+};
+
+type SourceListItem = {
+  id: string;
+  source: string;
+};
+
+type CampDetailsItem = {
+  bundleid: string;
+  source: string;
+  pid: string;
+  clicks: string;
+  installs: string;
+  p360Installs: number;
+  p360Events: number;
+};
+
+type CampaignPerformanceItem = {
+  bundleid: string;
+  campaign: string;
+  clicks: string;
+  installs: string;
+  events: string;
+  p360Installs: number;
+  p360Events: number;
+};
+
 export default function AppsflyerDashboard() {
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
+  const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [sourceSearch, setSourceSearch] = useState<string>("");
   const [debouncedSourceSearch, setDebouncedSourceSearch] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
   const [sortConfigDetail, setSortConfigDetail] = useState<SortConfig>({ key: null, direction: "asc" });
   const [copiedPid, setCopiedPid] = useState<string | null>(null);
   const [campaignDetailsOpen, setCampaignDetailsOpen] = useState(false);
-  const [selectedCampaignDetails, setSelectedCampaignDetails] = useState<typeof mockData[0] | null>(null);
+  const [selectedCampaignDetails, setSelectedCampaignDetails] = useState<CampaignPerformanceItem | null>(null);
+  const [campaignList, setCampaignList] = useState<CampaignListItem[]>([]);
+  const [isCampaignListLoading, setIsCampaignListLoading] = useState(false);
+  const [sourceList, setSourceList] = useState<SourceListItem[]>([]);
+  const [isSourceListLoading, setIsSourceListLoading] = useState(false);
+  const [sourceSearchInput, setSourceSearchInput] = useState<string>("");
+  const [selectedBundleId, setSelectedBundleId] = useState<string>("");
+  const [selectedSources, setSelectedSources] = useState<string[]>([]);
+  const [isSourceDropdownOpen, setIsSourceDropdownOpen] = useState(false);
+  const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
+  const [campDetails, setCampDetails] = useState<CampDetailsItem[]>([]);
+  const [isCampDetailsLoading, setIsCampDetailsLoading] = useState(false);
+  
+  // Pagination for Table 1 (Campaign Performance)
+  const [currentPageTable1, setCurrentPageTable1] = useState(1);
+  const [totalPagesTable1, setTotalPagesTable1] = useState(0);
+  const [totalRecordsTable1, setTotalRecordsTable1] = useState(0);
+  
+  // Pagination for Table 2 (Campaign Details by Source)
+  const [currentPageTable2, setCurrentPageTable2] = useState(1);
+  const [totalPagesTable2, setTotalPagesTable2] = useState(0);
+  const [totalRecordsTable2, setTotalRecordsTable2] = useState(0);
+  
+  const PAGE_SIZE = 10;
+  const [campaignPerformance, setCampaignPerformance] = useState<CampaignPerformanceItem[]>([]);
+  const [isCampaignPerformanceLoading, setIsCampaignPerformanceLoading] = useState(false);
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
     return {
@@ -278,6 +162,309 @@ export default function AppsflyerDashboard() {
     };
   });
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const campaignDropdownRef = useRef<HTMLDivElement>(null);
+  const sourceDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(event.target as Node)) {
+        setIsCampaignDropdownOpen(false);
+      }
+      if (sourceDropdownRef.current && !sourceDropdownRef.current.contains(event.target as Node)) {
+        setIsSourceDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Fetch campaign list and campaign performance data
+  useEffect(() => {
+    const fetchCampaignList = async () => {
+      setIsCampaignListLoading(true);
+      try {
+        const response = await fetch('/api/appsflyer-campaign-list');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch campaign list');
+        }
+        
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          setCampaignList(result.data);
+          // Auto-select the first campaign to load data
+          if (result.data.length > 0) {
+            const firstCampaign = result.data[0];
+            setSelectedCampaign(firstCampaign.campaign);
+            setSelectedBundleId(firstCampaign.id);
+          }
+        } else {
+          toast.error('Invalid campaign data format');
+        }
+      } catch (error) {
+        console.error('Error fetching campaign list:', error);
+        toast.error('Failed to load campaign list');
+      } finally {
+        setIsCampaignListLoading(false);
+      }
+    };
+
+    const fetchCampaignPerformance = async () => {
+      setIsCampaignPerformanceLoading(true);
+      console.log('[Table 1] Starting campaign performance fetch...', { page: currentPageTable1, limit: PAGE_SIZE });
+      const startTime = performance.now();
+      try {
+        const response = await fetch('/api/appsflyer-camp-details', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            bundle_id: 'all',
+            source: 'all',
+            page: currentPageTable1,
+            limit: PAGE_SIZE,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch campaign performance');
+        }
+
+        const result = await response.json();
+        const endTime = performance.now();
+        console.log(`[Table 1] API Response received in ${(endTime - startTime).toFixed(2)}ms`, { 
+          success: result.success, 
+          dataLength: result.data?.length, 
+          total_pages: result.total_pages, 
+          total: result.total 
+        });
+        
+        if (result.success && Array.isArray(result.data)) {
+          console.log(`[Table 1] Processing ${result.data.length} rows...`);
+          const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
+            ...item,
+            campaign: item.bundleid,
+            events: item.installs,
+            p360Installs: 2,
+            p360Events: 3,
+          }));
+          setCampaignPerformance(enrichedData);
+          setTotalPagesTable1(result.total_pages || 0);
+          setTotalRecordsTable1(result.total || 0);
+          console.log('[Table 1] Data set successfully', { rows: enrichedData.length, totalPages: result.total_pages, totalRecords: result.total });
+        } else {
+          console.warn('[Table 1] Invalid response format:', result);
+          toast.error('Invalid campaign performance data format');
+          setCampaignPerformance([]);
+          setTotalPagesTable1(0);
+          setTotalRecordsTable1(0);
+        }
+      } catch (error) {
+        console.error('[Table 1] Error fetching campaign performance:', error);
+        toast.error('Failed to load campaign performance');
+        setCampaignPerformance([]);
+        setTotalPagesTable1(0);
+        setTotalRecordsTable1(0);
+      } finally {
+        setIsCampaignPerformanceLoading(false);
+        console.log('[Table 1] Loading complete');
+      }
+    };
+
+    fetchCampaignList();
+    fetchCampaignPerformance();
+  }, []);
+
+  // Fetch campaign performance when page changes (for Table 1 pagination)
+  useEffect(() => {
+    if (currentPageTable1 === 1) return; // Already fetched in initial effect
+    
+    const fetchCampaignPerformancePaginated = async () => {
+      setIsCampaignPerformanceLoading(true);
+      console.log('[Table 1 - Page Change] Fetching page', currentPageTable1);
+      const startTime = performance.now();
+      try {
+        const response = await fetch('/api/appsflyer-camp-details', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            bundle_id: 'all',
+            source: 'all',
+            page: currentPageTable1,
+            limit: PAGE_SIZE,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch campaign performance');
+        }
+
+        const result = await response.json();
+        const endTime = performance.now();
+        console.log(`[Table 1 - Page Change] Response in ${(endTime - startTime).toFixed(2)}ms`, { 
+          page: currentPageTable1, 
+          dataLength: result.data?.length 
+        });
+        
+        if (result.success && Array.isArray(result.data)) {
+          const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
+            ...item,
+            campaign: item.bundleid,
+            events: item.installs,
+            p360Installs: 2,
+            p360Events: 3,
+          }));
+          setCampaignPerformance(enrichedData);
+          setTotalPagesTable1(result.total_pages || 0);
+          setTotalRecordsTable1(result.total || 0);
+        } else {
+          toast.error('Invalid campaign performance data format');
+          setCampaignPerformance([]);
+          setTotalPagesTable1(0);
+          setTotalRecordsTable1(0);
+        }
+      } catch (error) {
+        console.error('[Table 1 - Page Change] Error:', error);
+        toast.error('Failed to load campaign performance');
+        setCampaignPerformance([]);
+        setTotalPagesTable1(0);
+        setTotalRecordsTable1(0);
+      } finally {
+        setIsCampaignPerformanceLoading(false);
+      }
+    };
+
+    fetchCampaignPerformancePaginated();
+  }, [currentPageTable1]);
+
+  // Fetch source list based on selected campaign
+  useEffect(() => {
+    const fetchSourceList = async () => {
+      if (!selectedCampaign) {
+        setSourceList([]);
+        return;
+      }
+
+      setIsSourceListLoading(true);
+      try {
+        const bundleId = selectedCampaign === "all" ? "" : selectedBundleId;
+        const type = selectedCampaign === "all" ? "all" : "single";
+        
+        const url = `/api/appsflyer-source-list?id=${bundleId}&type=${type}`;
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch source list');
+        }
+        
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          setSourceList(result.data);
+        } else {
+          toast.error('Invalid source data format');
+          setSourceList([]);
+        }
+      } catch (error) {
+        console.error('Error fetching source list:', error);
+        toast.error('Failed to load source list');
+        setSourceList([]);
+      } finally {
+        setIsSourceListLoading(false);
+      }
+    };
+
+    fetchSourceList();
+  }, [selectedCampaign, selectedBundleId]);
+
+  // Fetch campaign details by source with pagination
+  useEffect(() => {
+    const fetchCampDetails = async () => {
+      setIsCampDetailsLoading(true);
+      console.log('[Table 2] Starting fetch...', { selectedCampaign, selectedSources, page: currentPageTable2, limit: PAGE_SIZE });
+      const startTime = performance.now();
+      try {
+        // Build the request payload
+        let bundleId = "all";
+        let source = "all";
+
+        if (selectedCampaign && selectedCampaign !== "all") {
+          bundleId = selectedBundleId;
+        }
+
+        if (selectedSources.length > 0) {
+          source = selectedSources.join(",");
+        }
+
+        console.log('[Table 2] API Payload:', { bundle_id: bundleId, source: source, page: currentPageTable2, limit: PAGE_SIZE });
+
+        const response = await fetch("/api/appsflyer-camp-details", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            bundle_id: bundleId,
+            source: source,
+            page: currentPageTable2,
+            limit: PAGE_SIZE,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch campaign details");
+        }
+
+        const result = await response.json();
+        const endTime = performance.now();
+        console.log(`[Table 2] Response received in ${(endTime - startTime).toFixed(2)}ms`, { 
+          success: result.success, 
+          dataLength: result.data?.length, 
+          total_pages: result.total_pages, 
+          total: result.total 
+        });
+        
+        if (result.success && Array.isArray(result.data)) {
+          console.log(`[Table 2] Processing ${result.data.length} rows...`);
+          // Add hardcoded p360 values
+          const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
+            ...item,
+            p360Installs: 2,
+            p360Events: 3,
+          }));
+          setCampDetails(enrichedData);
+          // Update pagination info from response
+          setTotalPagesTable2(result.total_pages || 0);
+          setTotalRecordsTable2(result.total || 0);
+          console.log('[Table 2] Data set successfully', { rows: enrichedData.length, totalPages: result.total_pages, totalRecords: result.total });
+        } else {
+          console.warn('[Table 2] Invalid response format:', result);
+          toast.error("Invalid campaign details data format");
+          setCampDetails([]);
+          setTotalPagesTable2(0);
+          setTotalRecordsTable2(0);
+        }
+      } catch (error) {
+        console.error("[Table 2] Error fetching campaign details:", error);
+        toast.error("Failed to load campaign details");
+        setCampDetails([]);
+        setTotalPagesTable2(0);
+        setTotalRecordsTable2(0);
+      } finally {
+        setIsCampDetailsLoading(false);
+        console.log('[Table 2] Loading complete');
+      }
+    };
+
+    // Only fetch if we have a campaign selected
+    if (selectedCampaign) {
+      fetchCampDetails();
+    }
+  }, [selectedCampaign, selectedBundleId, selectedSources, currentPageTable2]);
 
   const datePresets = [
     {
@@ -373,17 +560,12 @@ export default function AppsflyerDashboard() {
     return () => clearTimeout(timer);
   }, [sourceSearch]);
 
-  // Get unique campaign names for dropdown
-  const campaigns = Array.from(
-    new Set(mockDetailedData.map((item) => item.campaignName))
-  );
-
-  // Calculate summary stats
+  // Calculate summary stats from campaign performance data
   const summaryStats = useMemo(() => {
-    const totalClicks = mockData.reduce((sum, item) => sum + item.clicks, 0);
-    const totalInstalls = mockData.reduce((sum, item) => sum + item.installs, 0);
-    const totalEvents = mockData.reduce((sum, item) => sum + item.events, 0);
-    const totalP360Installs = mockData.reduce((sum, item) => sum + item.p360Installs, 0);
+    const totalClicks = campaignPerformance.reduce((sum, item) => sum + parseInt(item.clicks), 0);
+    const totalInstalls = campaignPerformance.reduce((sum, item) => sum + parseInt(item.installs), 0);
+    const totalEvents = campaignPerformance.reduce((sum, item) => sum + parseInt(item.events), 0);
+    const totalP360Installs = campaignPerformance.reduce((sum, item) => sum + item.p360Installs, 0);
     
     const conversionRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
     const eventRate = totalInstalls > 0 ? (totalEvents / totalInstalls) * 100 : 0;
@@ -396,7 +578,7 @@ export default function AppsflyerDashboard() {
       conversionRate,
       eventRate,
     };
-  }, []);
+  }, [campaignPerformance]);
 
   // Sorting function for main table
   const handleSort = (key: string) => {
@@ -416,13 +598,21 @@ export default function AppsflyerDashboard() {
     setSortConfigDetail({ key, direction });
   };
 
-  // Sort main data
-  const sortedMockData = useMemo(() => {
-    if (!sortConfig.key) return mockData;
+  // Sort campaign performance data
+  const sortedCampaignPerformance = useMemo(() => {
+    if (!sortConfig.key) return campaignPerformance;
     
-    return [...mockData].sort((a, b) => {
-      const aValue = a[sortConfig.key as keyof typeof a];
-      const bValue = b[sortConfig.key as keyof typeof b];
+    return [...campaignPerformance].sort((a, b) => {
+      let aValue: any = a[sortConfig.key as keyof typeof a];
+      let bValue: any = b[sortConfig.key as keyof typeof b];
+      
+      // Convert string numbers to actual numbers for comparison
+      if (typeof aValue === "string" && !isNaN(Number(aValue))) {
+        aValue = parseInt(aValue);
+      }
+      if (typeof bValue === "string" && !isNaN(Number(bValue))) {
+        bValue = parseInt(bValue);
+      }
       
       if (typeof aValue === "number" && typeof bValue === "number") {
         return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
@@ -436,20 +626,20 @@ export default function AppsflyerDashboard() {
       
       return 0;
     });
-  }, [sortConfig]);
+  }, [sortConfig, campaignPerformance]);
 
-  // Filter detailed data based on selected campaign and source search
+  // Filter detailed data based on selected campaign and selected sources
   const filteredDetailedData = useMemo(() => {
-    let filtered = mockDetailedData.filter((item) => {
-      const campaignMatch =
-        selectedCampaign === "all" || !selectedCampaign || item.campaignName === selectedCampaign;
-      const sourceMatch =
-        debouncedSourceSearch.length < 3 ||
-        item.source
-          .toLowerCase()
-          .includes(debouncedSourceSearch.toLowerCase());
-      return campaignMatch && sourceMatch;
-    });
+    let filtered = campDetails.map(item => ({
+      id: Math.random(), // Use random id since API doesn't provide one
+      campaignName: item.bundleid,
+      source: item.source,
+      pid: item.pid,
+      clicks: parseInt(item.clicks),
+      installs: parseInt(item.installs),
+      p360Installs: item.p360Installs,
+      p360Events: item.p360Events,
+    }));
 
     // Apply sorting
     if (sortConfigDetail.key) {
@@ -472,15 +662,15 @@ export default function AppsflyerDashboard() {
     }
 
     return filtered;
-  }, [selectedCampaign, debouncedSourceSearch, sortConfigDetail]);
+  }, [campDetails, sortConfigDetail]);
 
   const handleExportData = () => {
-    // Mock export functionality
+    // Export campaign performance data
     const csv = [
       ["Campaign Name", "Bundle ID", "Clicks", "Installs", "Events", "P360 Installs", "P360 Events"],
-      ...mockData.map(row => [
-        row.campaignName,
-        row.bundleId,
+      ...campaignPerformance.map(row => [
+        row.campaign,
+        row.bundleid,
         row.clicks,
         row.installs,
         row.events,
@@ -522,13 +712,76 @@ export default function AppsflyerDashboard() {
     }
   };
 
-  const handleViewCampaignDetails = (campaignName: string) => {
-    const campaign = mockData.find(c => c.campaignName === campaignName);
+  const handleViewCampaignDetails = (bundleId: string) => {
+    const campaign = campaignPerformance.find(c => c.bundleid === bundleId);
     if (campaign) {
       setSelectedCampaignDetails(campaign);
       setCampaignDetailsOpen(true);
     }
   };
+
+  const handleCampaignChange = (value: string) => {
+    setSelectedCampaign(value);
+    setSourceSearchInput("");
+    setSelectedSources([]);
+    setCurrentPageTable2(1); // Reset to page 1 when campaign changes
+    
+    if (value === "all") {
+      setSelectedBundleId("");
+    } else {
+      const selectedCampaignItem = campaignList.find(c => c.campaign === value);
+      if (selectedCampaignItem) {
+        setSelectedBundleId(selectedCampaignItem.id);
+      }
+    }
+  };
+
+  // Handle source selection (multi-select)
+  const handleSourceToggle = (sourceId: string) => {
+    setSelectedSources(prev => {
+      const newState = prev.includes(sourceId) 
+        ? prev.filter(id => id !== sourceId)
+        : [...prev, sourceId];
+      setCurrentPageTable2(1); // Reset to page 1 when sources change
+      return newState;
+    });
+  };
+
+  // Pagination handlers for Table 1
+  const handlePreviousPageTable1 = () => {
+    if (currentPageTable1 > 1) {
+      setCurrentPageTable1(currentPageTable1 - 1);
+    }
+  };
+
+  const handleNextPageTable1 = () => {
+    if (currentPageTable1 < totalPagesTable1) {
+      setCurrentPageTable1(currentPageTable1 + 1);
+    }
+  };
+
+  // Pagination handlers for Table 2
+  const handlePreviousPageTable2 = () => {
+    if (currentPageTable2 > 1) {
+      setCurrentPageTable2(currentPageTable2 - 1);
+    }
+  };
+
+  const handleNextPageTable2 = () => {
+    if (currentPageTable2 < totalPagesTable2) {
+      setCurrentPageTable2(currentPageTable2 + 1);
+    }
+  };
+
+  // Filter sources based on search
+  const filteredSourceList = sourceList.filter(item =>
+    item.source.toLowerCase().includes(sourceSearchInput.toLowerCase())
+  );
+
+  // Filter campaigns based on search
+  const filteredCampaignList = campaignList.filter(item =>
+    item.campaign.toLowerCase().includes(campaignSearch.toLowerCase())
+  );
 
   return (
     <TooltipProvider>
@@ -733,7 +986,7 @@ export default function AppsflyerDashboard() {
               </div>
               <Badge variant="outline" className="gap-1">
                 <BarChart3 className="h-3 w-3" />
-                {mockData.length} Campaigns
+                {campaignPerformance.length} Records (Page {currentPageTable1} of {totalPagesTable1})
               </Badge>
             </div>
           </CardHeader>
@@ -744,121 +997,163 @@ export default function AppsflyerDashboard() {
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                       <TableHead 
-                        className="w-[250px] cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSort("campaignName")}
                       >
-                        <div className="flex items-center font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Campaign Name
                           {getSortIcon("campaignName", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-right cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSort("clicks")}
                       >
-                        <div className="flex items-center justify-end font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Clicks
                           {getSortIcon("clicks", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-right cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSort("installs")}
                       >
-                        <div className="flex items-center justify-end font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Installs
                           {getSortIcon("installs", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-right cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSort("events")}
                       >
-                        <div className="flex items-center justify-end font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Events
                           {getSortIcon("events", sortConfig)}
                         </div>
                       </TableHead>
-                      <TableHead colSpan={2} className="text-center bg-purple-500/5">
-                        <div className="font-semibold flex items-center justify-center gap-1">
-                          <span className="text-purple-600 dark:text-purple-400">P 360</span>
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                    <TableRow className="bg-purple-500/5 hover:bg-purple-500/5">
-                      <TableHead></TableHead>
-                      <TableHead></TableHead>
-                      <TableHead></TableHead>
-                      <TableHead></TableHead>
                       <TableHead 
-                        className="text-right text-xs cursor-pointer select-none hover:bg-purple-500/10 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
                         onClick={() => handleSort("p360Installs")}
                       >
-                        <div className="flex items-center justify-end">
-                          Installs
+                        <div className="flex items-center justify-center font-semibold">
+                          P360 Installs
                           {getSortIcon("p360Installs", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-right text-xs cursor-pointer select-none hover:bg-purple-500/10 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
                         onClick={() => handleSort("p360Events")}
                       >
-                        <div className="flex items-center justify-end">
-                          Events
+                        <div className="flex items-center justify-center font-semibold">
+                          P360 Events
                           {getSortIcon("p360Events", sortConfig)}
                         </div>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sortedMockData.map((row, index) => (
-                      <TableRow 
-                        key={row.id} 
-                        className="hover:bg-muted/50 transition-colors group"
-                      >
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                              {row.campaignName}
-                            </div>
-                            <div className="text-xs text-muted-foreground font-mono">
-                              {row.bundleId}
-                            </div>
+                    {isCampaignPerformanceLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-32">
+                          <div className="flex items-center justify-center">
+                            <p className="text-sm text-muted-foreground">Loading campaign performance...</p>
                           </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="font-semibold">{row.clicks.toLocaleString()}</span>
-                            <MousePointerClick className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <span className="font-semibold">{row.installs.toLocaleString()}</span>
-                            <Badge variant="outline" className="text-xs px-1.5 py-0">
-                              {((row.installs / row.clicks) * 100).toFixed(1)}%
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          {row.events.toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-right bg-purple-500/5">
-                          <span className="font-medium text-purple-600 dark:text-purple-400">
-                            {row.p360Installs.toLocaleString()}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right bg-purple-500/5">
-                          <span className="font-medium text-purple-600 dark:text-purple-400">
-                            {row.p360Events.toLocaleString()}
-                          </span>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : sortedCampaignPerformance.length > 0 ? (
+                      sortedCampaignPerformance.map((row) => (
+                        <TableRow 
+                          key={row.bundleid} 
+                          className="hover:bg-muted/50 transition-colors group"
+                        >
+                          <TableCell>
+                            <div className="space-y-1">
+                              <div className="font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                                {row.campaign}
+                              </div>
+                              <div className="text-xs text-muted-foreground font-mono">
+                                {row.bundleid}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="font-semibold">{parseInt(row.clicks).toLocaleString()}</span>
+                              <MousePointerClick className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="font-semibold">{parseInt(row.installs).toLocaleString()}</span>
+                              <Badge variant="outline" className="text-xs px-1.5 py-0">
+                                {((parseInt(row.installs) / parseInt(row.clicks)) * 100).toFixed(1)}%
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {parseInt(row.events).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right bg-purple-500/5">
+                            <span className="font-medium text-purple-600 dark:text-purple-400">
+                              {row.p360Installs.toLocaleString()}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right bg-purple-500/5">
+                            <span className="font-medium text-purple-600 dark:text-purple-400">
+                              {row.p360Events.toLocaleString()}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-32">
+                          <div className="flex items-center justify-center">
+                            <p className="text-sm text-muted-foreground">No campaign data available</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
             </div>
+
+            {/* Pagination Controls for Table 1 */}
+            {totalPagesTable1 > 0 && (
+              <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/30 rounded-b-lg">
+                <div className="text-sm text-muted-foreground">
+                  Page <span className="font-semibold text-foreground">{currentPageTable1}</span> of <span className="font-semibold text-foreground">{totalPagesTable1}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousPageTable1}
+                    disabled={currentPageTable1 === 1 || isCampaignPerformanceLoading}
+                    className="gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPageTable1}
+                    disabled={currentPageTable1 === totalPagesTable1 || isCampaignPerformanceLoading}
+                    className="gap-2"
+                  >
+                    Next
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -874,7 +1169,7 @@ export default function AppsflyerDashboard() {
               </div>
               <Badge variant="outline" className="gap-1">
                 <Filter className="h-3 w-3" />
-                {filteredDetailedData.length} Sources
+                {filteredDetailedData.length} Records (Page {currentPageTable2} of {totalPagesTable2})
               </Badge>
             </div>
           </CardHeader>
@@ -882,77 +1177,216 @@ export default function AppsflyerDashboard() {
             {/* Enhanced Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
               {/* Campaign Filter */}
-              <div className="space-y-2">
+              <div className="space-y-2" ref={campaignDropdownRef}>
                 <Label htmlFor="campaign-select" className="text-sm font-semibold flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
                   Campaign
                 </Label>
-                <div className="flex gap-2">
-                  <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
-                    <SelectTrigger id="campaign-select" className="bg-background flex-1">
-                      <SelectValue placeholder="Select a campaign..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4" />
-                          <span>All Campaigns</span>
-                        </div>
-                      </SelectItem>
-                      {campaigns.map((campaign) => {
-                        const campaignData = mockData.find(c => c.campaignName === campaign);
-                        return (
-                          <SelectItem key={campaign} value={campaign}>
-                            <div className="flex items-center gap-2">
-                              {campaignData?.image && (
-                                <img 
-                                  src={campaignData.image} 
-                                  alt={campaign}
-                                  className="h-5 w-5 rounded object-cover"
-                                />
-                              )}
-                              <span>{campaign}</span>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsCampaignDropdownOpen(!isCampaignDropdownOpen)}
+                    disabled={isCampaignListLoading}
+                    className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-left"
+                  >
+                    <span className="text-sm">
+                      {selectedCampaign 
+                        ? campaignList.find(c => c.campaign === selectedCampaign)?.campaign || "Select a campaign..."
+                        : isCampaignListLoading ? "Loading campaigns..." : "Select a campaign..."}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 transition-transform ${isCampaignDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </button>
+                  
+                  {isCampaignDropdownOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-50 min-w-max">
+                      <div className="p-2 border-b sticky top-0 bg-background">
+                        <Input
+                          placeholder="Search campaigns..."
+                          value={campaignSearch}
+                          onChange={(e) => setCampaignSearch(e.target.value)}
+                          className="h-8 text-sm"
+                          autoFocus
+                        />
+                      </div>
+                      
+                      <div className="max-h-48 overflow-y-auto">
+                        {isCampaignListLoading ? (
+                          <div className="p-4 text-sm text-muted-foreground text-center">
+                            Loading campaigns...
+                          </div>
+                        ) : campaignList.length === 0 ? (
+                          <div className="p-4 text-sm text-muted-foreground text-center">
+                            No campaigns available
+                          </div>
+                        ) : (
+                          <>
+                            <div
+                              onClick={() => {
+                                handleCampaignChange("all");
+                                setIsCampaignDropdownOpen(false);
+                                setCampaignSearch("");
+                              }}
+                              className={`flex items-center gap-2 p-3 hover:bg-muted border-b cursor-pointer ${selectedCampaign === "all" ? "bg-muted" : ""}`}
+                            >
+                              <Target className="h-4 w-4" />
+                              <span className="font-medium text-sm">All Campaigns</span>
                             </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {selectedCampaign && selectedCampaign !== "all" && (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleViewCampaignDetails(selectedCampaign)}
-                        >
-                          <ImageIcon className="h-4 w-4" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>View campaign details</TooltipContent>
-                    </Tooltip>
+                            {filteredCampaignList.length > 0 ? (
+                              filteredCampaignList.map((item) => (
+                                <div
+                                  key={item.id}
+                                  onClick={() => {
+                                    handleCampaignChange(item.campaign);
+                                    setIsCampaignDropdownOpen(false);
+                                    setCampaignSearch("");
+                                  }}
+                                  className={`flex items-center gap-3 p-3 hover:bg-muted border-b cursor-pointer ${selectedCampaign === item.campaign ? "bg-muted" : ""}`}
+                                >
+                                  <span className="font-medium text-sm">{item.campaign}</span>
+                                  <span className="text-xs text-muted-foreground">({item.id})</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="p-4 text-sm text-muted-foreground text-center">
+                                No campaigns match your search
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Source Search Filter */}
-              <div className="space-y-2">
-                <Label htmlFor="source-search" className="text-sm font-semibold flex items-center gap-2">
+              {/* Source Filter with Multi-Select Dropdown and Search */}
+              <div className="space-y-2" ref={sourceDropdownRef}>
+                <Label className="text-sm font-semibold flex items-center gap-2">
                   <Filter className="h-4 w-4" />
-                  Source (3+ characters)
+                  Sources ({selectedSources.length} selected)
                 </Label>
-                <Input
-                  id="source-search"
-                  placeholder="Search source name..."
-                  value={sourceSearch}
-                  onChange={(e) => setSourceSearch(e.target.value)}
-                  type="text"
-                  className="bg-background"
-                />
-                {debouncedSourceSearch.length > 0 && debouncedSourceSearch.length < 3 && (
-                  <p className="text-xs text-muted-foreground">
-                    Type {3 - debouncedSourceSearch.length} more character(s) to search
-                  </p>
+                <div className="relative">
+                  <button
+                    onClick={() => setIsSourceDropdownOpen(!isSourceDropdownOpen)}
+                    disabled={!selectedCampaign || isSourceListLoading}
+                    className="w-full flex items-center justify-between px-3 py-2 border rounded-md bg-background hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <span className="text-sm">
+                      {selectedSources.length > 0
+                        ? `${selectedSources.length} source${selectedSources.length !== 1 ? 's' : ''} selected`
+                        : isSourceListLoading
+                        ? "Loading sources..."
+                        : "Select sources..."}
+                    </span>
+                    <svg
+                      className={`w-4 h-4 transition-transform ${isSourceDropdownOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                    </svg>
+                  </button>
+                  
+                  {isSourceDropdownOpen && selectedCampaign && (
+                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-50 min-w-max">
+                      <div className="p-2 border-b sticky top-0 bg-background">
+                        <Input
+                          placeholder="Search sources..."
+                          value={sourceSearchInput}
+                          onChange={(e) => setSourceSearchInput(e.target.value)}
+                          className="h-8 text-sm"
+                          autoFocus
+                        />
+                      </div>
+                      
+                      <div className="max-h-48 overflow-y-auto">
+                        {isSourceListLoading ? (
+                          <div className="p-4 text-sm text-muted-foreground text-center">
+                            Loading sources...
+                          </div>
+                        ) : sourceList.length === 0 ? (
+                          <div className="p-4 text-sm text-muted-foreground text-center">
+                            No sources available
+                          </div>
+                        ) : filteredSourceList.length > 0 ? (
+                          <>
+                            <div
+                              onClick={() => {
+                                if (selectedSources.length === sourceList.length) {
+                                  setSelectedSources([]);
+                                } else {
+                                  setSelectedSources(sourceList.map(s => s.source));
+                                }
+                              }}
+                              className="flex items-center gap-3 p-3 hover:bg-muted border-b cursor-pointer bg-muted/50"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedSources.length === sourceList.length && sourceList.length > 0}
+                                readOnly
+                                className="w-4 h-4 rounded cursor-pointer"
+                              />
+                              <label className="flex-1 font-medium text-sm cursor-pointer">
+                                Select All Sources
+                              </label>
+                            </div>
+                            {filteredSourceList.map((item) => {
+                              const isChecked = selectedSources.includes(item.source);
+                              return (
+                                <div
+                                  key={item.source}
+                                  className="flex items-center gap-3 p-3 hover:bg-muted border-b last:border-b-0"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    id={`source-${item.source}`}
+                                    checked={isChecked}
+                                    onChange={() => handleSourceToggle(item.source)}
+                                    className="w-4 h-4 rounded cursor-pointer"
+                                  />
+                                  <label 
+                                    htmlFor={`source-${item.source}`}
+                                    className="flex-1 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <span className="font-medium text-sm">{item.source}</span>
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </>
+                        ) : (
+                          <div className="p-4 text-sm text-muted-foreground text-center">
+                            No sources match your search
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {selectedSources.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedSources.map(sourceName => {
+                      const source = sourceList.find(s => s.source === sourceName);
+                      return source ? (
+                        <Badge key={sourceName} variant="secondary" className="gap-2">
+                          {source.source}
+                          <button
+                            onClick={() => handleSourceToggle(sourceName)}
+                            className="ml-1 hover:opacity-70"
+                          >
+                            ✕
+                          </button>
+                        </Badge>
+                      ) : null;
+                    })}
+                  </div>
                 )}
               </div>
             </div>
@@ -964,66 +1398,63 @@ export default function AppsflyerDashboard() {
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                       <TableHead 
-                        className="w-[200px] cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSortDetail("source")}
                       >
-                        <div className="flex items-center font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Source
                           {getSortIcon("source", sortConfigDetail)}
                         </div>
                       </TableHead>
-                      <TableHead className="w-[150px] font-semibold">PID</TableHead>
+                      <TableHead className="text-center font-semibold">PID</TableHead>
                       <TableHead 
-                        className="text-right cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSortDetail("clicks")}
                       >
-                        <div className="flex items-center justify-end font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Clicks
                           {getSortIcon("clicks", sortConfigDetail)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-right cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSortDetail("installs")}
                       >
-                        <div className="flex items-center justify-end font-semibold">
+                        <div className="flex items-center justify-center font-semibold">
                           Installs
                           {getSortIcon("installs", sortConfigDetail)}
                         </div>
                       </TableHead>
-                      <TableHead colSpan={2} className="text-center bg-purple-500/5">
-                        <div className="font-semibold flex items-center justify-center gap-1">
-                          <span className="text-purple-600 dark:text-purple-400">P 360</span>
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                    <TableRow className="bg-purple-500/5 hover:bg-purple-500/5">
-                      <TableHead></TableHead>
-                      <TableHead></TableHead>
-                      <TableHead></TableHead>
-                      <TableHead></TableHead>
                       <TableHead 
-                        className="text-right text-xs cursor-pointer select-none hover:bg-purple-500/10 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
                         onClick={() => handleSortDetail("p360Installs")}
                       >
-                        <div className="flex items-center justify-end">
-                          Installs
+                        <div className="flex items-center justify-center font-semibold">
+                          P360 Installs
                           {getSortIcon("p360Installs", sortConfigDetail)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-right text-xs cursor-pointer select-none hover:bg-purple-500/10 transition-colors"
+                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
                         onClick={() => handleSortDetail("p360Events")}
                       >
-                        <div className="flex items-center justify-end">
-                          Events
+                        <div className="flex items-center justify-center font-semibold">
+                          P360 Events
                           {getSortIcon("p360Events", sortConfigDetail)}
                         </div>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredDetailedData.length > 0 ? (
+                    {isCampDetailsLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="h-32">
+                          <div className="flex items-center justify-center">
+                            <p className="text-sm text-muted-foreground">Loading data...</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredDetailedData.length > 0 ? (
                       filteredDetailedData.map((row) => (
                         <TableRow 
                           key={row.id}
@@ -1101,25 +1532,52 @@ export default function AppsflyerDashboard() {
                 </Table>
               </div>
             </div>
+
+            {/* Pagination Controls for Table 2 */}
+            {totalPagesTable2 > 0 && (
+              <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/30 rounded-b-lg">
+                <div className="text-sm text-muted-foreground">
+                  Page <span className="font-semibold text-foreground">{currentPageTable2}</span> of <span className="font-semibold text-foreground">{totalPagesTable2}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousPageTable2}
+                    disabled={currentPageTable2 === 1 || isCampDetailsLoading}
+                    className="gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPageTable2}
+                    disabled={currentPageTable2 === totalPagesTable2 || isCampDetailsLoading}
+                    className="gap-2"
+                  >
+                    Next
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* Campaign Details Dialog */}
         <Dialog open={campaignDetailsOpen} onOpenChange={setCampaignDetailsOpen}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3">
-                {selectedCampaignDetails?.image && (
-                  <img 
-                    src={selectedCampaignDetails.image} 
-                    alt={selectedCampaignDetails.campaignName}
-                    className="h-12 w-12 rounded-lg object-cover ring-2 ring-border"
-                  />
-                )}
+              
                 <div>
-                  <div className="text-xl font-bold">{selectedCampaignDetails?.campaignName}</div>
+                  <div className="text-xl font-bold">{selectedCampaignDetails?.campaign}</div>
                   <code className="text-xs text-muted-foreground font-normal">
-                    {selectedCampaignDetails?.bundleId}
+                    {selectedCampaignDetails?.bundleid}
                   </code>
                 </div>
               </DialogTitle>
@@ -1128,163 +1586,7 @@ export default function AppsflyerDashboard() {
               </DialogDescription>
             </DialogHeader>
 
-            {selectedCampaignDetails && (
-              <div className="space-y-6 py-4">
-                {/* Campaign Image */}
-                <div className="relative rounded-lg overflow-hidden border">
-                  <img 
-                    src={selectedCampaignDetails.image} 
-                    alt={selectedCampaignDetails.campaignName}
-                    className="w-full h-48 object-cover"
-                  />
-                  <div className="absolute top-3 right-3">
-                    <Badge className="bg-background/80 backdrop-blur-sm">
-                      {selectedCampaignDetails.category}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Campaign Info Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-blue-500/10">
-                          <CalendarDays className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Start Date</p>
-                          <p className="text-sm font-semibold">
-                            {format(new Date(selectedCampaignDetails.startDate), "MMM dd, yyyy")}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-orange-500/10">
-                          <CalendarDays className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">End Date</p>
-                          <p className="text-sm font-semibold">
-                            {format(new Date(selectedCampaignDetails.endDate), "MMM dd, yyyy")}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-purple-500/10">
-                          <Target className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Category</p>
-                          <p className="text-sm font-semibold">{selectedCampaignDetails.category}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-green-500/10">
-                          <Globe className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Bundle ID</p>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={() => handleCopyPid(selectedCampaignDetails.bundleId)}
-                                className="text-sm font-mono hover:text-primary transition-colors flex items-center gap-1"
-                              >
-                                <span className="truncate max-w-[140px]">
-                                  {selectedCampaignDetails.bundleId}
-                                </span>
-                                <Copy className="h-3 w-3" />
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent>Click to copy</TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Description */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Description</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {selectedCampaignDetails.description}
-                    </p>
-                  </CardContent>
-                </Card>
-
-                {/* Performance Metrics */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-sm">Performance Summary</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="text-center p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
-                        <MousePointerClick className="h-5 w-5 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
-                        <p className="text-2xl font-bold">{selectedCampaignDetails.clicks.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Clicks</p>
-                      </div>
-                      <div className="text-center p-3 rounded-lg bg-green-500/5 border border-green-500/10">
-                        <Smartphone className="h-5 w-5 mx-auto mb-2 text-green-600 dark:text-green-400" />
-                        <p className="text-2xl font-bold">{selectedCampaignDetails.installs.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Installs</p>
-                      </div>
-                      <div className="text-center p-3 rounded-lg bg-purple-500/5 border border-purple-500/10">
-                        <Zap className="h-5 w-5 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
-                        <p className="text-2xl font-bold">{selectedCampaignDetails.events.toLocaleString()}</p>
-                        <p className="text-xs text-muted-foreground">Events</p>
-                      </div>
-                    </div>
-
-                    <Separator className="my-4" />
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
-                        <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
-                          {selectedCampaignDetails.p360Installs.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">P360 Installs</p>
-                      </div>
-                      <div className="text-center p-3 rounded-lg bg-orange-500/5 border border-orange-500/10">
-                        <p className="text-lg font-bold text-orange-600 dark:text-orange-400">
-                          {selectedCampaignDetails.p360Events.toLocaleString()}
-                        </p>
-                        <p className="text-xs text-muted-foreground">P360 Events</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Conversion Rate:</span>
-                        <Badge variant="outline" className="font-semibold">
-                          {((selectedCampaignDetails.installs / selectedCampaignDetails.clicks) * 100).toFixed(2)}%
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+           
           </DialogContent>
         </Dialog>
       </div>
