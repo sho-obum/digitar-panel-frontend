@@ -103,6 +103,7 @@ type CampDetailsItem = {
 type CampaignPerformanceItem = {
   bundleid: string;
   campaign: string;
+  campaigns?: string;
   clicks: string;
   installs: string;
   events: string;
@@ -246,7 +247,7 @@ export default function AppsflyerDashboard() {
           console.log(`[Table 1] Processing ${result.data.length} rows...`);
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
             ...item,
-            campaign: item.bundleid,
+            campaign: item.campaigns || item.bundleid,
             events: item.installs,
             p360Installs: 2,
             p360Events: 3,
@@ -314,7 +315,7 @@ export default function AppsflyerDashboard() {
         if (result.success && Array.isArray(result.data)) {
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
             ...item,
-            campaign: item.bundleid,
+            campaign: item.campaigns || item.bundleid,
             events: item.installs,
             p360Installs: 2,
             p360Events: 3,
@@ -408,6 +409,7 @@ export default function AppsflyerDashboard() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+           
             bundle_id: bundleId,
             source: source,
             page: currentPageTable2,
