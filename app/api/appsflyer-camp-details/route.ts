@@ -1,7 +1,7 @@
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { source, bundle_id, page = 1, limit = 10 } = body;
+    const { source, bundle_id, page = 1, limit = 10, fromDate, toDate } = body;
 
     if (!source || !bundle_id) {
       return Response.json(
@@ -23,6 +23,8 @@ export async function POST(request: Request) {
         bundle_id,
         page,
         limit,
+        fromDate,
+        toDate,
       }),
     });
 
