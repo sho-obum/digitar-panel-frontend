@@ -52,7 +52,8 @@ import {
   Check,
   Image as ImageIcon,
   Globe,
-  Target
+  Target,
+  Search
 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, subDays } from "date-fns";
 import { Badge } from "@/components/ui/badge";
@@ -96,24 +97,37 @@ type CampDetailsItem = {
   pid: string;
   clicks: string;
   installs: string;
-  p360Installs: number;
-  p360Events: number;
+  event: string;
+  p360installs: string;
+  p360event: string;
+  campaign_c?: string;
+  date?: string;
+  impressions?: string | number;
+  conversion_rate?: string;
 };
 
 type CampaignPerformanceItem = {
   bundleid: string;
   campaign: string;
+  campaigns?: string;
   clicks: string;
   installs: string;
-  events: string;
-  p360Installs: number;
-  p360Events: number;
+  event: string;
+  p360installs: string;
+  p360event: string;
+  campaign_c?: string;
+  date?: string;
+  impressions?: string | number;
+  conversion_rate?: string;
 };
 
 export default function AppsflyerDashboard() {
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
   const [campaignSearch, setCampaignSearch] = useState<string>("");
+  const [campaignNameSearch, setCampaignNameSearch] = useState<string>("");
   const [sourceSearch, setSourceSearch] = useState<string>("");
+  const [showDateColumn, setShowDateColumn] = useState(false);
+  const [showCParamColumn, setShowCParamColumn] = useState(false);
   const [debouncedSourceSearch, setDebouncedSourceSearch] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
   const [sortConfigDetail, setSortConfigDetail] = useState<SortConfig>({ key: null, direction: "asc" });
@@ -131,6 +145,7 @@ export default function AppsflyerDashboard() {
   const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
   const [campDetails, setCampDetails] = useState<CampDetailsItem[]>([]);
   const [isCampDetailsLoading, setIsCampDetailsLoading] = useState(false);
+  const [searchTrigger, setSearchTrigger] = useState(0); // Timestamp to trigger search
   
   // Pagination for Table 1 (Campaign Performance)
   const [currentPageTable1, setCurrentPageTable1] = useState(1);
@@ -194,12 +209,11 @@ export default function AppsflyerDashboard() {
         const result = await response.json();
         if (result.success && Array.isArray(result.data)) {
           setCampaignList(result.data);
-          // Auto-select the first campaign to load data
-          if (result.data.length > 0) {
-            const firstCampaign = result.data[0];
-            setSelectedCampaign(firstCampaign.campaign);
-            setSelectedBundleId(firstCampaign.id);
-          }
+          // Set default selection to "all" campaigns for Table 2
+          setSelectedCampaign("all");
+          setSelectedBundleId("");
+          // Trigger initial fetch for Table 2 with default filters
+          setSearchTrigger(Date.now());
         } else {
           toast.error('Invalid campaign data format');
         }
@@ -226,6 +240,8 @@ export default function AppsflyerDashboard() {
             source: 'all',
             page: currentPageTable1,
             limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
 
@@ -246,10 +262,10 @@ export default function AppsflyerDashboard() {
           console.log(`[Table 1] Processing ${result.data.length} rows...`);
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
             ...item,
-            campaign: item.bundleid,
-            events: item.installs,
-            p360Installs: 2,
-            p360Events: 3,
+            campaign: item.campaigns || item.bundleid,
+            event: item.event,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
           }));
           setCampaignPerformance(enrichedData);
           setTotalPagesTable1(result.total_pages || 0);
@@ -274,13 +290,15 @@ export default function AppsflyerDashboard() {
       }
     };
 
+    // Reset to page 1 when date changes
+    setCurrentPageTable1(1);
+    
     fetchCampaignList();
     fetchCampaignPerformance();
-  }, []);
+  }, [dateRange]);
 
   // Fetch campaign performance when page changes (for Table 1 pagination)
   useEffect(() => {
-    if (currentPageTable1 === 1) return; // Already fetched in initial effect
     
     const fetchCampaignPerformancePaginated = async () => {
       setIsCampaignPerformanceLoading(true);
@@ -297,6 +315,8 @@ export default function AppsflyerDashboard() {
             source: 'all',
             page: currentPageTable1,
             limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
 
@@ -314,10 +334,10 @@ export default function AppsflyerDashboard() {
         if (result.success && Array.isArray(result.data)) {
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
             ...item,
-            campaign: item.bundleid,
-            events: item.installs,
-            p360Installs: 2,
-            p360Events: 3,
+            campaign: item.campaigns || item.bundleid,
+            event: item.event,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
           }));
           setCampaignPerformance(enrichedData);
           setTotalPagesTable1(result.total_pages || 0);
@@ -340,7 +360,7 @@ export default function AppsflyerDashboard() {
     };
 
     fetchCampaignPerformancePaginated();
-  }, [currentPageTable1]);
+  }, [currentPageTable1, dateRange]);
 
   // Fetch source list based on selected campaign
   useEffect(() => {
@@ -385,22 +405,23 @@ export default function AppsflyerDashboard() {
   useEffect(() => {
     const fetchCampDetails = async () => {
       setIsCampDetailsLoading(true);
-      console.log('[Table 2] Starting fetch...', { selectedCampaign, selectedSources, page: currentPageTable2, limit: PAGE_SIZE });
+      
+      // ALWAYS use page 1 on initial search (when GO is clicked)
+      const pageToUse = 1;
+      
+      console.log('[Table 2] Starting fetch...', { selectedCampaign, selectedSources, page: pageToUse, limit: PAGE_SIZE });
       const startTime = performance.now();
       try {
         // Build the request payload
+        // Always use "all" for campaigns in Table 2, only filter by sources
         let bundleId = "all";
         let source = "all";
-
-        if (selectedCampaign && selectedCampaign !== "all") {
-          bundleId = selectedBundleId;
-        }
 
         if (selectedSources.length > 0) {
           source = selectedSources.join(",");
         }
 
-        console.log('[Table 2] API Payload:', { bundle_id: bundleId, source: source, page: currentPageTable2, limit: PAGE_SIZE });
+        console.log('[Table 2] API Payload:', { bundle_id: bundleId, source: source, page: pageToUse, limit: PAGE_SIZE });
 
         const response = await fetch("/api/appsflyer-camp-details", {
           method: "POST",
@@ -410,8 +431,10 @@ export default function AppsflyerDashboard() {
           body: JSON.stringify({
             bundle_id: bundleId,
             source: source,
-            page: currentPageTable2,
+            page: pageToUse,
             limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
 
@@ -430,16 +453,26 @@ export default function AppsflyerDashboard() {
         
         if (result.success && Array.isArray(result.data)) {
           console.log(`[Table 2] Processing ${result.data.length} rows...`);
-          // Add hardcoded p360 values
+          // Map API response to component type - use actual p360 values from API
           const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
-            ...item,
-            p360Installs: 2,
-            p360Events: 3,
+            bundleid: item.bundleid,
+            source: item.source,
+            pid: item.pid,
+            clicks: item.clicks,
+            installs: item.installs,
+            event: item.event,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
+            campaign_c: item.campaign_c,
+            date: item.date,
+            impressions: item.impressions,
           }));
           setCampDetails(enrichedData);
           // Update pagination info from response
           setTotalPagesTable2(result.total_pages || 0);
           setTotalRecordsTable2(result.total || 0);
+          // NOW update the state to page 1 after successful fetch
+          setCurrentPageTable2(1);
           console.log('[Table 2] Data set successfully', { rows: enrichedData.length, totalPages: result.total_pages, totalRecords: result.total });
         } else {
           console.warn('[Table 2] Invalid response format:', result);
@@ -460,11 +493,92 @@ export default function AppsflyerDashboard() {
       }
     };
 
-    // Only fetch if we have a campaign selected
-    if (selectedCampaign) {
+    // Only fetch if user clicked GO button (searchTrigger changed)
+    if (searchTrigger > 0) {
+      // Reset to page 1 when date changes
+      setCurrentPageTable2(1);
       fetchCampDetails();
     }
-  }, [selectedCampaign, selectedBundleId, selectedSources, currentPageTable2]);
+  }, [searchTrigger, dateRange]);
+
+  // Fetch when pagination changes (only if hasSearched is true)
+  useEffect(() => {
+    const fetchCampDetails = async () => {
+      setIsCampDetailsLoading(true);
+      console.log('[Table 2 - Pagination] Fetching page...', { page: currentPageTable2, limit: PAGE_SIZE });
+      const startTime = performance.now();
+      try {
+        let bundleId = "all";
+        let source = "all";
+
+        if (selectedSources.length > 0) {
+          source = selectedSources.join(",");
+        }
+
+        console.log('[Table 2 - Pagination] API Payload:', { bundle_id: bundleId, source: source, page: currentPageTable2, limit: PAGE_SIZE });
+
+        const response = await fetch("/api/appsflyer-camp-details", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            bundle_id: bundleId,
+            source: source,
+            page: currentPageTable2,
+            limit: PAGE_SIZE,
+            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+            toDate: format(dateRange.to, 'yyyy-MM-dd'),
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch campaign details");
+        }
+
+        const result = await response.json();
+        const endTime = performance.now();
+        console.log(`[Table 2 - Pagination] Response in ${(endTime - startTime).toFixed(2)}ms`, { 
+          page: currentPageTable2, 
+          dataLength: result.data?.length 
+        });
+        
+        if (result.success && Array.isArray(result.data)) {
+          const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
+            bundleid: item.bundleid,
+            source: item.source,
+            pid: item.pid,
+            clicks: item.clicks,
+            installs: item.installs,
+            event: item.event,
+            p360installs: item.p360installs,
+            p360event: item.p360event,
+          }));
+          setCampDetails(enrichedData);
+          setTotalPagesTable2(result.total_pages || 0);
+          setTotalRecordsTable2(result.total || 0);
+        } else {
+          toast.error("Invalid campaign details data format");
+          setCampDetails([]);
+          setTotalPagesTable2(0);
+          setTotalRecordsTable2(0);
+        }
+      } catch (error) {
+        console.error("[Table 2 - Pagination] Error:", error);
+        toast.error("Failed to load campaign details");
+        setCampDetails([]);
+        setTotalPagesTable2(0);
+        setTotalRecordsTable2(0);
+      } finally {
+        setIsCampDetailsLoading(false);
+      }
+    };
+
+    // Only fetch on pagination changes if searchTrigger is set and we're past page 1
+    if (searchTrigger > 0 && currentPageTable2 > 1) {
+      fetchCampDetails();
+    }
+  }, [searchTrigger, currentPageTable2]);
 
   const datePresets = [
     {
@@ -564,8 +678,8 @@ export default function AppsflyerDashboard() {
   const summaryStats = useMemo(() => {
     const totalClicks = campaignPerformance.reduce((sum, item) => sum + parseInt(item.clicks), 0);
     const totalInstalls = campaignPerformance.reduce((sum, item) => sum + parseInt(item.installs), 0);
-    const totalEvents = campaignPerformance.reduce((sum, item) => sum + parseInt(item.events), 0);
-    const totalP360Installs = campaignPerformance.reduce((sum, item) => sum + item.p360Installs, 0);
+    const totalEvents = campaignPerformance.reduce((sum, item) => sum + parseInt(item.event), 0);
+    const totalP360Installs = campaignPerformance.reduce((sum, item) => sum + parseInt(item.p360installs), 0);
     
     const conversionRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
     const eventRate = totalInstalls > 0 ? (totalEvents / totalInstalls) * 100 : 0;
@@ -598,11 +712,20 @@ export default function AppsflyerDashboard() {
     setSortConfigDetail({ key, direction });
   };
 
-  // Sort campaign performance data
+  // Sort and filter campaign performance data
   const sortedCampaignPerformance = useMemo(() => {
-    if (!sortConfig.key) return campaignPerformance;
+    let filtered = campaignPerformance;
     
-    return [...campaignPerformance].sort((a, b) => {
+    // Apply campaign name search filter
+    if (campaignNameSearch.trim()) {
+      filtered = filtered.filter(row => 
+        row.campaign.toLowerCase().includes(campaignNameSearch.toLowerCase())
+      );
+    }
+    
+    if (!sortConfig.key) return filtered;
+    
+    return [...filtered].sort((a, b) => {
       let aValue: any = a[sortConfig.key as keyof typeof a];
       let bValue: any = b[sortConfig.key as keyof typeof b];
       
@@ -626,7 +749,7 @@ export default function AppsflyerDashboard() {
       
       return 0;
     });
-  }, [sortConfig, campaignPerformance]);
+  }, [sortConfig, campaignPerformance, campaignNameSearch]);
 
   // Filter detailed data based on selected campaign and selected sources
   const filteredDetailedData = useMemo(() => {
@@ -637,8 +760,12 @@ export default function AppsflyerDashboard() {
       pid: item.pid,
       clicks: parseInt(item.clicks),
       installs: parseInt(item.installs),
-      p360Installs: item.p360Installs,
-      p360Events: item.p360Events,
+      event: parseInt(item.event),
+      p360Installs: parseInt(item.p360installs),
+      p360Events: parseInt(item.p360event),
+      campaign_c: item.campaign_c,
+      date: item.date,
+      impressions: item.impressions ? parseInt(String(item.impressions)) : 0,
     }));
 
     // Apply sorting
@@ -666,17 +793,22 @@ export default function AppsflyerDashboard() {
 
   const handleExportData = () => {
     // Export campaign performance data
+    const headers = ["Campaign Name", "Bundle ID"];
+    if (showDateColumn) headers.push("Date");
+    headers.push("Clicks");
+    if (showCParamColumn) headers.push("C Parameter");
+    headers.push("Installs", "Events", "P360 Installs", "P360 Events", "Impressions");
+    
     const csv = [
-      ["Campaign Name", "Bundle ID", "Clicks", "Installs", "Events", "P360 Installs", "P360 Events"],
-      ...campaignPerformance.map(row => [
-        row.campaign,
-        row.bundleid,
-        row.clicks,
-        row.installs,
-        row.events,
-        row.p360Installs,
-        row.p360Events,
-      ]),
+      headers,
+      ...campaignPerformance.map(row => {
+        const data = [row.campaign, row.bundleid];
+        if (showDateColumn) data.push(row.date || '');
+        data.push(row.clicks);
+        if (showCParamColumn) data.push(row.campaign_c || '');
+        data.push(row.installs, row.event, row.p360installs, row.p360event, String(row.impressions || 0));
+        return data;
+      }),
     ]
       .map(row => row.join(","))
       .join("\n");
@@ -724,7 +856,7 @@ export default function AppsflyerDashboard() {
     setSelectedCampaign(value);
     setSourceSearchInput("");
     setSelectedSources([]);
-    setCurrentPageTable2(1); // Reset to page 1 when campaign changes
+    setSearchTrigger(0); // RESET trigger - no fetch until GO button clicked
     
     if (value === "all") {
       setSelectedBundleId("");
@@ -742,9 +874,17 @@ export default function AppsflyerDashboard() {
       const newState = prev.includes(sourceId) 
         ? prev.filter(id => id !== sourceId)
         : [...prev, sourceId];
-      setCurrentPageTable2(1); // Reset to page 1 when sources change
       return newState;
     });
+    // Don't trigger anything - wait for GO button
+  };
+
+  // Handle GO button click
+  const handleSearch = () => {
+    // ALWAYS reset to page 1 when user clicks GO
+    setCurrentPageTable2(1);
+    // Then trigger the fetch
+    setSearchTrigger(Date.now());
   };
 
   // Pagination handlers for Table 1
@@ -782,6 +922,9 @@ export default function AppsflyerDashboard() {
   const filteredCampaignList = campaignList.filter(item =>
     item.campaign.toLowerCase().includes(campaignSearch.toLowerCase())
   );
+
+  // Determine if we're showing campaigns or sources in Table 2's first column
+  const isShowingCampaigns = selectedSources.length > 0;
 
   return (
     <TooltipProvider>
@@ -991,6 +1134,50 @@ export default function AppsflyerDashboard() {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Search and Column Toggle Controls */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
+              <div className="flex-1">
+                <Label htmlFor="campaignNameSearch" className="text-sm font-medium mb-2 block">
+                  Search Campaign Name
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="campaignNameSearch"
+                    placeholder="Search campaigns..."
+                    value={campaignNameSearch}
+                    onChange={(e) => setCampaignNameSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="showDateColumn"
+                    checked={showDateColumn}
+                    onChange={(e) => setShowDateColumn(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Label htmlFor="showDateColumn" className="text-sm font-medium">
+                    Show Date
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="showCParamColumn"
+                    checked={showCParamColumn}
+                    onChange={(e) => setShowCParamColumn(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Label htmlFor="showCParamColumn" className="text-sm font-medium">
+                    Show C Parameter
+                  </Label>
+                </div>
+              </div>
+            </div>
             <div className="rounded-lg border overflow-hidden">
               <div className="overflow-x-auto">
                 <Table>
@@ -1001,10 +1188,21 @@ export default function AppsflyerDashboard() {
                         onClick={() => handleSort("campaignName")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          Campaign Name
+                          Campaign Details
                           {getSortIcon("campaignName", sortConfig)}
                         </div>
                       </TableHead>
+                      {showDateColumn && (
+                        <TableHead 
+                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSort("date")}
+                        >
+                          <div className="flex items-center justify-center font-semibold">
+                            Date
+                            {getSortIcon("date", sortConfig)}
+                          </div>
+                        </TableHead>
+                      )}
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSort("clicks")}
@@ -1014,6 +1212,17 @@ export default function AppsflyerDashboard() {
                           {getSortIcon("clicks", sortConfig)}
                         </div>
                       </TableHead>
+                      {showCParamColumn && (
+                        <TableHead 
+                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSort("campaign_c")}
+                        >
+                          <div className="flex items-center justify-center font-semibold">
+                            C Parameter
+                            {getSortIcon("campaign_c", sortConfig)}
+                          </div>
+                        </TableHead>
+                      )}
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSort("installs")}
@@ -1025,42 +1234,59 @@ export default function AppsflyerDashboard() {
                       </TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
-                        onClick={() => handleSort("events")}
+                        onClick={() => handleSort("event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           Events
-                          {getSortIcon("events", sortConfig)}
+                          {getSortIcon("event", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
-                        onClick={() => handleSort("p360Installs")}
+                        onClick={() => handleSort("p360installs")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           P360 Installs
-                          {getSortIcon("p360Installs", sortConfig)}
+                          {getSortIcon("p360installs", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
-                        onClick={() => handleSort("p360Events")}
+                        onClick={() => handleSort("p360event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           P360 Events
-                          {getSortIcon("p360Events", sortConfig)}
+                          {getSortIcon("p360event", sortConfig)}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        onClick={() => handleSort("impressions")}
+                      >
+                        <div className="flex items-center justify-center font-semibold">
+                          Impressions
+                          {getSortIcon("impressions", sortConfig)}
                         </div>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isCampaignPerformanceLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-32">
-                          <div className="flex items-center justify-center">
-                            <p className="text-sm text-muted-foreground">Loading campaign performance...</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        {[...Array(10)].map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            {showDateColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            {showCParamColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                          </TableRow>
+                        ))}
+                      </>
                     ) : sortedCampaignPerformance.length > 0 ? (
                       sortedCampaignPerformance.map((row) => (
                         <TableRow 
@@ -1077,38 +1303,51 @@ export default function AppsflyerDashboard() {
                               </div>
                             </div>
                           </TableCell>
+                          {showDateColumn && (
+                            <TableCell className="text-center">
+                              <span className="text-sm">{row.date || '-'}</span>
+                            </TableCell>
+                          )}
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{parseInt(row.clicks).toLocaleString()}</span>
                               <MousePointerClick className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                           </TableCell>
+                          {showCParamColumn && (
+                            <TableCell className="text-center">
+                              <span className="text-sm font-mono">{row.campaign_c || '-'}</span>
+                            </TableCell>
+                          )}
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{parseInt(row.installs).toLocaleString()}</span>
                               <Badge variant="outline" className="text-xs px-1.5 py-0">
-                                {((parseInt(row.installs) / parseInt(row.clicks)) * 100).toFixed(1)}%
+                                {parseInt(row.clicks) > 0 ? ((parseInt(row.installs) / parseInt(row.clicks)) * 100).toFixed(3) : '0'}%
                               </Badge>
                             </div>
                           </TableCell>
                           <TableCell className="text-right font-semibold">
-                            {parseInt(row.events).toLocaleString()}
+                            {parseInt(row.event).toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right bg-purple-500/5">
                             <span className="font-medium text-purple-600 dark:text-purple-400">
-                              {row.p360Installs.toLocaleString()}
+                              {parseInt(row.p360installs).toLocaleString()}
                             </span>
                           </TableCell>
                           <TableCell className="text-right bg-purple-500/5">
                             <span className="font-medium text-purple-600 dark:text-purple-400">
-                              {row.p360Events.toLocaleString()}
+                              {parseInt(row.p360event).toLocaleString()}
                             </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-semibold">{row.impressions ? parseInt(String(row.impressions)).toLocaleString() : '0'}</span>
                           </TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32">
+                        <TableCell colSpan={7 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
                           <div className="flex items-center justify-center">
                             <p className="text-sm text-muted-foreground">No campaign data available</p>
                           </div>
@@ -1175,7 +1414,7 @@ export default function AppsflyerDashboard() {
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Enhanced Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/30">
               {/* Campaign Filter */}
               <div className="space-y-2" ref={campaignDropdownRef}>
                 <Label htmlFor="campaign-select" className="text-sm font-semibold flex items-center gap-2">
@@ -1389,6 +1628,48 @@ export default function AppsflyerDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* GO Button */}
+              <div className="flex items-end">
+                <Button 
+                  onClick={handleSearch}
+                  size="lg"
+                  className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Search className="h-4 w-4" />
+                  Apply Filters
+                </Button>
+              </div>
+            </div>
+
+            {/* Search and Column Toggle Controls for Second Table */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="showDateColumnDetail"
+                    checked={showDateColumn}
+                    onChange={(e) => setShowDateColumn(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Label htmlFor="showDateColumnDetail" className="text-sm font-medium">
+                    Show Date
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="showCParamColumnDetail"
+                    checked={showCParamColumn}
+                    onChange={(e) => setShowCParamColumn(e.target.checked)}
+                    className="rounded"
+                  />
+                  <Label htmlFor="showCParamColumnDetail" className="text-sm font-medium">
+                    Show C Parameter
+                  </Label>
+                </div>
+              </div>
             </div>
 
             {/* Table */}
@@ -1399,13 +1680,24 @@ export default function AppsflyerDashboard() {
                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
-                        onClick={() => handleSortDetail("source")}
+                        onClick={() => handleSortDetail(isShowingCampaigns ? "campaignName" : "source")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          Source
-                          {getSortIcon("source", sortConfigDetail)}
+                          {isShowingCampaigns ? "Campaign" : "Source"}
+                          {getSortIcon(isShowingCampaigns ? "campaignName" : "source", sortConfigDetail)}
                         </div>
                       </TableHead>
+                      {showDateColumn && (
+                        <TableHead 
+                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSortDetail("date")}
+                        >
+                          <div className="flex items-center justify-center font-semibold">
+                            Date
+                            {getSortIcon("date", sortConfigDetail)}
+                          </div>
+                        </TableHead>
+                      )}
                       <TableHead className="text-center font-semibold">PID</TableHead>
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
@@ -1416,6 +1708,17 @@ export default function AppsflyerDashboard() {
                           {getSortIcon("clicks", sortConfigDetail)}
                         </div>
                       </TableHead>
+                      {showCParamColumn && (
+                        <TableHead 
+                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          onClick={() => handleSortDetail("campaign_c")}
+                        >
+                          <div className="flex items-center justify-center font-semibold">
+                            C Parameter
+                            {getSortIcon("campaign_c", sortConfigDetail)}
+                          </div>
+                        </TableHead>
+                      )}
                       <TableHead 
                         className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
                         onClick={() => handleSortDetail("installs")}
@@ -1423,6 +1726,15 @@ export default function AppsflyerDashboard() {
                         <div className="flex items-center justify-center font-semibold">
                           Installs
                           {getSortIcon("installs", sortConfigDetail)}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        onClick={() => handleSortDetail("event")}
+                      >
+                        <div className="flex items-center justify-center font-semibold">
+                          Events
+                          {getSortIcon("event", sortConfigDetail)}
                         </div>
                       </TableHead>
                       <TableHead 
@@ -1443,17 +1755,34 @@ export default function AppsflyerDashboard() {
                           {getSortIcon("p360Events", sortConfigDetail)}
                         </div>
                       </TableHead>
+                      <TableHead 
+                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        onClick={() => handleSortDetail("impressions")}
+                      >
+                        <div className="flex items-center justify-center font-semibold">
+                          Impressions
+                          {getSortIcon("impressions", sortConfigDetail)}
+                        </div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {isCampDetailsLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="h-32">
-                          <div className="flex items-center justify-center">
-                            <p className="text-sm text-muted-foreground">Loading data...</p>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        {[...Array(10)].map((_, i) => (
+                          <TableRow key={i}>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            {showDateColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
+                            <TableCell><Skeleton className="h-8 w-32" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            {showCParamColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
+                          </TableRow>
+                        ))}
+                      </>
                     ) : filteredDetailedData.length > 0 ? (
                       filteredDetailedData.map((row) => (
                         <TableRow 
@@ -1462,9 +1791,14 @@ export default function AppsflyerDashboard() {
                         >
                           <TableCell>
                             <div className="font-medium group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                              {row.source}
+                              {isShowingCampaigns ? row.campaignName : row.source}
                             </div>
                           </TableCell>
+                          {showDateColumn && (
+                            <TableCell className="text-center">
+                              <span className="text-sm">{row.date || '-'}</span>
+                            </TableCell>
+                          )}
                           <TableCell>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1491,13 +1825,21 @@ export default function AppsflyerDashboard() {
                               <MousePointerClick className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </div>
                           </TableCell>
+                          {showCParamColumn && (
+                            <TableCell className="text-center">
+                              <span className="text-sm font-mono">{row.campaign_c || '-'}</span>
+                            </TableCell>
+                          )}
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{row.installs.toLocaleString()}</span>
                               <Badge variant="outline" className="text-xs px-1.5 py-0">
-                                {((row.installs / row.clicks) * 100).toFixed(1)}%
+                                {row.clicks > 0 ? ((row.installs / row.clicks) * 100).toFixed(3) : '0'}%
                               </Badge>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {row.event.toLocaleString()}
                           </TableCell>
                           <TableCell className="text-right bg-purple-500/5">
                             <span className="font-medium text-purple-600 dark:text-purple-400">
@@ -1509,11 +1851,14 @@ export default function AppsflyerDashboard() {
                               {row.p360Events.toLocaleString()}
                             </span>
                           </TableCell>
+                          <TableCell className="text-right">
+                            <span className="font-semibold">{row.impressions ? row.impressions.toLocaleString() : '0'}</span>
+                          </TableCell>
                         </TableRow>
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-32">
+                        <TableCell colSpan={7 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
                           <div className="flex flex-col items-center justify-center text-center space-y-3">
                             <div className="p-3 rounded-full bg-muted">
                               <Filter className="h-6 w-6 text-muted-foreground" />
