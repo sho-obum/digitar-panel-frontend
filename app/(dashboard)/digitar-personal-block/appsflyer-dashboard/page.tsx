@@ -123,17 +123,15 @@ type CampaignPerformanceItem = {
 
 export default function AppsflyerDashboard() {
   const [selectedCampaign, setSelectedCampaign] = useState<string>("");
-  const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [campaignNameSearch, setCampaignNameSearch] = useState<string>("");
-  const [sourceSearch, setSourceSearch] = useState<string>("");
+  const [debouncedCampaignSearch, setDebouncedCampaignSearch] = useState<string>("");
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [campaignSearch, setCampaignSearch] = useState<string>(""); // Local search for campaign dropdown
   const [showDateColumn, setShowDateColumn] = useState(false);
   const [showCParamColumn, setShowCParamColumn] = useState(false);
-  const [debouncedSourceSearch, setDebouncedSourceSearch] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
   const [sortConfigDetail, setSortConfigDetail] = useState<SortConfig>({ key: null, direction: "asc" });
   const [copiedPid, setCopiedPid] = useState<string | null>(null);
-  const [campaignDetailsOpen, setCampaignDetailsOpen] = useState(false);
-  const [selectedCampaignDetails, setSelectedCampaignDetails] = useState<CampaignPerformanceItem | null>(null);
   const [campaignList, setCampaignList] = useState<CampaignListItem[]>([]);
   const [isCampaignListLoading, setIsCampaignListLoading] = useState(false);
   const [sourceList, setSourceList] = useState<SourceListItem[]>([]);
@@ -179,6 +177,22 @@ export default function AppsflyerDashboard() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const campaignDropdownRef = useRef<HTMLDivElement>(null);
   const sourceDropdownRef = useRef<HTMLDivElement>(null);
+  const searchDropdownRef = useRef<HTMLDivElement>(null);
+  const [sourceDropdownWidth, setSourceDropdownWidth] = useState<number>(0);
+
+  // Debounce campaign search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedCampaignSearch(campaignNameSearch);
+      if (campaignNameSearch.length >= 3) {
+        setShowSearchDropdown(true);
+      } else {
+        setShowSearchDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [campaignNameSearch]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -189,10 +203,36 @@ export default function AppsflyerDashboard() {
       if (sourceDropdownRef.current && !sourceDropdownRef.current.contains(event.target as Node)) {
         setIsSourceDropdownOpen(false);
       }
+      if (searchDropdownRef.current && !searchDropdownRef.current.contains(event.target as Node)) {
+        setShowSearchDropdown(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Measure source dropdown width and sync badges container
+  useEffect(() => {
+    const measureDropdownWidth = () => {
+      if (sourceDropdownRef.current) {
+        const width = sourceDropdownRef.current.offsetWidth;
+        setSourceDropdownWidth(width);
+      }
+    };
+
+    // Measure on mount and window resize
+    measureDropdownWidth();
+    window.addEventListener("resize", measureDropdownWidth);
+    
+    // Use ResizeObserver for more accurate tracking
+    if (sourceDropdownRef.current) {
+      const observer = new ResizeObserver(measureDropdownWidth);
+      observer.observe(sourceDropdownRef.current);
+      return () => observer.disconnect();
+    }
+
+    return () => window.removeEventListener("resize", measureDropdownWidth);
   }, []);
 
   // Fetch campaign list and campaign performance data
@@ -666,14 +706,6 @@ export default function AppsflyerDashboard() {
     setIsPopoverOpen(false);
   };
 
-  // Debounce source search
-  useMemo(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSourceSearch(sourceSearch);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [sourceSearch]);
-
   // Calculate summary stats from campaign performance data
   const summaryStats = useMemo(() => {
     const totalClicks = campaignPerformance.reduce((sum, item) => sum + parseInt(item.clicks), 0);
@@ -717,9 +749,9 @@ export default function AppsflyerDashboard() {
     let filtered = campaignPerformance;
     
     // Apply campaign name search filter
-    if (campaignNameSearch.trim()) {
+    if (debouncedCampaignSearch.trim()) {
       filtered = filtered.filter(row => 
-        row.campaign.toLowerCase().includes(campaignNameSearch.toLowerCase())
+        row.campaign.toLowerCase().includes(debouncedCampaignSearch.toLowerCase())
       );
     }
     
@@ -749,24 +781,31 @@ export default function AppsflyerDashboard() {
       
       return 0;
     });
-  }, [sortConfig, campaignPerformance, campaignNameSearch]);
+  }, [sortConfig, campaignPerformance, debouncedCampaignSearch]);
 
   // Filter detailed data based on selected campaign and selected sources
   const filteredDetailedData = useMemo(() => {
-    let filtered = campDetails.map(item => ({
-      id: Math.random(), // Use random id since API doesn't provide one
-      campaignName: item.bundleid,
-      source: item.source,
-      pid: item.pid,
-      clicks: parseInt(item.clicks),
-      installs: parseInt(item.installs),
-      event: parseInt(item.event),
-      p360Installs: parseInt(item.p360installs),
-      p360Events: parseInt(item.p360event),
-      campaign_c: item.campaign_c,
-      date: item.date,
-      impressions: item.impressions ? parseInt(String(item.impressions)) : 0,
-    }));
+    let filtered = campDetails.map(item => {
+      // Find campaign name from campaignList using bundleid
+      const campaignItem = campaignList.find(c => c.id === item.bundleid);
+      const campaignName = campaignItem ? campaignItem.campaign : item.bundleid;
+      
+      return {
+        id: Math.random(), // Use random id since API doesn't provide one
+        bundleid: item.bundleid,
+        campaignName: campaignName,
+        source: item.source,
+        pid: item.pid,
+        clicks: parseInt(item.clicks),
+        installs: parseInt(item.installs),
+        event: parseInt(item.event),
+        p360Installs: parseInt(item.p360installs),
+        p360Events: parseInt(item.p360event),
+        campaign_c: item.campaign_c,
+        date: item.date,
+        impressions: item.impressions ? parseInt(String(item.impressions)) : 0,
+      };
+    });
 
     // Apply sorting
     if (sortConfigDetail.key) {
@@ -789,7 +828,7 @@ export default function AppsflyerDashboard() {
     }
 
     return filtered;
-  }, [campDetails, sortConfigDetail]);
+  }, [campDetails, sortConfigDetail, campaignList]);
 
   const handleExportData = () => {
     // Export campaign performance data
@@ -841,14 +880,6 @@ export default function AppsflyerDashboard() {
       setTimeout(() => setCopiedPid(null), 2000);
     } catch (err) {
       toast.error("Failed to copy PID");
-    }
-  };
-
-  const handleViewCampaignDetails = (bundleId: string) => {
-    const campaign = campaignPerformance.find(c => c.bundleid === bundleId);
-    if (campaign) {
-      setSelectedCampaignDetails(campaign);
-      setCampaignDetailsOpen(true);
     }
   };
 
@@ -918,7 +949,7 @@ export default function AppsflyerDashboard() {
     item.source.toLowerCase().includes(sourceSearchInput.toLowerCase())
   );
 
-  // Filter campaigns based on search
+  // Filter campaigns based on local search in dropdown
   const filteredCampaignList = campaignList.filter(item =>
     item.campaign.toLowerCase().includes(campaignSearch.toLowerCase())
   );
@@ -1040,81 +1071,61 @@ export default function AppsflyerDashboard() {
           </div>
         </div>
 
-        {/* Summary Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Compact Summary Stats - Single Row */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           {/* Total Clicks */}
-          <Card className="relative overflow-hidden border-l-4 border-l-blue-500 hover:shadow-lg transition-all duration-300 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Total Clicks</p>
-                  <p className="text-2xl font-bold">{summaryStats.totalClicks.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-green-500" />
-                    Conversion: {summaryStats.conversionRate.toFixed(2)}%
-                  </p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-br from-blue-500/10 to-blue-600/5">
-                  <MousePointerClick className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
+          <div className="relative overflow-hidden rounded-lg border bg-card p-3 border-l-4 border-l-blue-500 hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-0.5">Clicks</p>
+                <p className="text-xl font-bold">{summaryStats.totalClicks.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <TrendingUp className="h-2.5 w-2.5 text-green-500" />
+                  {summaryStats.conversionRate.toFixed(2)}% CVR
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              <MousePointerClick className="h-7 w-7 text-blue-500/70" />
+            </div>
+          </div>
 
           {/* Total Installs */}
-          <Card className="relative overflow-hidden border-l-4 border-l-green-500 hover:shadow-lg transition-all duration-300 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Total Installs</p>
-                  <p className="text-2xl font-bold">{summaryStats.totalInstalls.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
-                    <TrendingUp className="h-3 w-3 text-green-500" />
-                    Event Rate: {summaryStats.eventRate.toFixed(2)}%
-                  </p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-br from-green-500/10 to-green-600/5">
-                  <Smartphone className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
+          <div className="relative overflow-hidden rounded-lg border bg-card p-3 border-l-4 border-l-green-500 hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-0.5">Installs</p>
+                <p className="text-xl font-bold">{summaryStats.totalInstalls.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <TrendingUp className="h-2.5 w-2.5 text-green-500" />
+                  {summaryStats.eventRate.toFixed(2)}% Events
+                </p>
               </div>
-            </CardContent>
-          </Card>
+              <Smartphone className="h-7 w-7 text-green-500/70" />
+            </div>
+          </div>
 
           {/* Total Events */}
-          <Card className="relative overflow-hidden border-l-4 border-l-purple-500 hover:shadow-lg transition-all duration-300 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">Total Events</p>
-                  <p className="text-2xl font-bold">{summaryStats.totalEvents.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">In-app actions tracked</p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-br from-purple-500/10 to-purple-600/5">
-                  <Zap className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
+          <div className="relative overflow-hidden rounded-lg border bg-card p-3 border-l-4 border-l-purple-500 hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-0.5">Events</p>
+                <p className="text-xl font-bold">{summaryStats.totalEvents.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">In-app actions</p>
               </div>
-            </CardContent>
-          </Card>
+              <Zap className="h-7 w-7 text-purple-500/70" />
+            </div>
+          </div>
 
           {/* P360 Installs */}
-          <Card className="relative overflow-hidden border-l-4 border-l-orange-500 hover:shadow-lg transition-all duration-300 group">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium text-muted-foreground">P360 Installs</p>
-                  <p className="text-2xl font-bold">{summaryStats.totalP360Installs.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Premium segment</p>
-                </div>
-                <div className="p-3 rounded-full bg-gradient-to-br from-orange-500/10 to-orange-600/5">
-                  <BarChart3 className="h-6 w-6 text-orange-600 dark:text-orange-400" />
-                </div>
+          <div className="relative overflow-hidden rounded-lg border bg-card p-3 border-l-4 border-l-orange-500 hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-0.5">P360 Installs</p>
+                <p className="text-xl font-bold">{summaryStats.totalP360Installs.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Premium</p>
               </div>
-            </CardContent>
-          </Card>
+              <BarChart3 className="h-7 w-7 text-orange-500/70" />
+            </div>
+          </div>
         </div>
 
         {/* Campaign Performance Table */}
@@ -1123,7 +1134,7 @@ export default function AppsflyerDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-xl">Campaign Performance</CardTitle>
-                <CardDescription className="mt-1">
+                <CardDescription className="mt-1 -mb-9">
                   Overview of all campaigns with performance metrics
                 </CardDescription>
               </div>
@@ -1135,23 +1146,53 @@ export default function AppsflyerDashboard() {
           </CardHeader>
           <CardContent>
             {/* Search and Column Toggle Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
-              <div className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 rounded-lg bg-muted/50 border">
+              <div className="w-full sm:w-96" ref={searchDropdownRef}>
                 <Label htmlFor="campaignNameSearch" className="text-sm font-medium mb-2 block">
-                  Search Campaign Name
+                  Search Campaign
                 </Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="campaignNameSearch"
-                    placeholder="Search campaigns..."
+                    placeholder="Type at least 3 characters to search..."
                     value={campaignNameSearch}
                     onChange={(e) => setCampaignNameSearch(e.target.value)}
+                    onFocus={() => {
+                      if (campaignNameSearch.length >= 3) {
+                        setShowSearchDropdown(true);
+                      }
+                    }}
                     className="pl-10"
                   />
+                  {showSearchDropdown && sortedCampaignPerformance.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-50 max-h-60 overflow-y-auto">
+                      <div className="p-2">
+                        <p className="text-xs text-muted-foreground mb-2">{sortedCampaignPerformance.length} result{sortedCampaignPerformance.length !== 1 ? 's' : ''} found</p>
+                        {sortedCampaignPerformance.slice(0, 10).map((item, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              setCampaignNameSearch(item.campaign);
+                              setShowSearchDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-muted rounded-md text-sm transition-colors"
+                          >
+                            <div className="font-medium">{item.campaign}</div>
+                            <div className="text-xs text-muted-foreground">{item.bundleid}</div>
+                          </button>
+                        ))}
+                        {sortedCampaignPerformance.length > 10 && (
+                          <div className="text-xs text-center text-muted-foreground mt-2 py-1">
+                            +{sortedCampaignPerformance.length - 10} more results
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 mt-6">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
@@ -1164,7 +1205,7 @@ export default function AppsflyerDashboard() {
                     Show Date
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 ">
                   <input
                     type="checkbox"
                     id="showCParamColumn"
@@ -1179,12 +1220,16 @@ export default function AppsflyerDashboard() {
               </div>
             </div>
             <div className="rounded-lg border overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-100/20 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-blue-400 [&::-webkit-scrollbar-thumb]:to-blue-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                 <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                    <TableRow className="border-b-2 border-blue-500/20">
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSort("campaignName")}
                       >
                         <div className="flex items-center justify-center font-semibold">
@@ -1194,7 +1239,9 @@ export default function AppsflyerDashboard() {
                       </TableHead>
                       {showDateColumn && (
                         <TableHead 
-                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                            showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                          }`}
                           onClick={() => handleSort("date")}
                         >
                           <div className="flex items-center justify-center font-semibold">
@@ -1204,17 +1251,36 @@ export default function AppsflyerDashboard() {
                         </TableHead>
                       )}
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
+                        onClick={() => handleSort("impressions")}
+                      >
+                        <div className="flex items-center justify-center font-semibold">
+                          {showDateColumn && showCParamColumn ? 'Impr' : 'Impressions'}
+                          {getSortIcon("impressions", sortConfig)}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSort("clicks")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          Clicks
+                          {showDateColumn && showCParamColumn ? 'Clks' : 'Clicks'}
                           {getSortIcon("clicks", sortConfig)}
                         </div>
                       </TableHead>
                       {showCParamColumn && (
                         <TableHead 
-                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                            showDateColumn ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                          }`}
                           onClick={() => handleSort("campaign_c")}
                         >
                           <div className="flex items-center justify-center font-semibold">
@@ -1224,48 +1290,55 @@ export default function AppsflyerDashboard() {
                         </TableHead>
                       )}
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSort("installs")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          Installs
+                          {showDateColumn && showCParamColumn ? 'Inst' : 'Installs'}
                           {getSortIcon("installs", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSort("event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          Events
+                          {showDateColumn && showCParamColumn ? 'Evts' : 'Events'}
                           {getSortIcon("event", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
+                        className={`text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5 ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSort("p360installs")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          P360 Installs
+                          {showDateColumn && showCParamColumn ? 'P360I' : 'P360 Installs'}
                           {getSortIcon("p360installs", sortConfig)}
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
+                        className={`text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5 ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSort("p360event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          P360 Events
+                          {showDateColumn && showCParamColumn ? 'P360E' : 'P360 Events'}
                           {getSortIcon("p360event", sortConfig)}
-                        </div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
-                        onClick={() => handleSort("impressions")}
-                      >
-                        <div className="flex items-center justify-center font-semibold">
-                          Impressions
-                          {getSortIcon("impressions", sortConfig)}
                         </div>
                       </TableHead>
                     </TableRow>
@@ -1291,7 +1364,11 @@ export default function AppsflyerDashboard() {
                       sortedCampaignPerformance.map((row) => (
                         <TableRow 
                           key={row.bundleid} 
-                          className="hover:bg-muted/50 transition-colors group"
+                          className={`hover:bg-muted/50 transition-colors group ${
+                            showDateColumn && showCParamColumn ? 'text-[10px]' : 
+                            showDateColumn || showCParamColumn ? 'text-xs' : 
+                            'text-sm'
+                          }`}
                         >
                           <TableCell>
                             <div className="space-y-1">
@@ -1305,9 +1382,14 @@ export default function AppsflyerDashboard() {
                           </TableCell>
                           {showDateColumn && (
                             <TableCell className="text-center">
-                              <span className="text-sm">{row.date || '-'}</span>
+                              <div className="flex items-center justify-center">
+                                <span className={showDateColumn && showCParamColumn ? 'text-[10px]' : showDateColumn || showCParamColumn ? 'text-xs' : 'text-sm'}>{row.date || '-'}</span>
+                              </div>
                             </TableCell>
                           )}
+                          <TableCell className="text-right">
+                            <span className="font-semibold text-muted-foreground">{row.impressions ? parseInt(String(row.impressions)).toLocaleString() : '0'}</span>
+                          </TableCell>
                           <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{parseInt(row.clicks).toLocaleString()}</span>
@@ -1316,7 +1398,9 @@ export default function AppsflyerDashboard() {
                           </TableCell>
                           {showCParamColumn && (
                             <TableCell className="text-center">
-                              <span className="text-sm font-mono">{row.campaign_c || '-'}</span>
+                              <div className="flex items-center justify-center">
+                                <span className={`font-mono ${showDateColumn && showCParamColumn ? 'text-[10px]' : showDateColumn || showCParamColumn ? 'text-xs' : 'text-sm'}`}>{row.campaign_c || '-'}</span>
+                              </div>
                             </TableCell>
                           )}
                           <TableCell className="text-right">
@@ -1339,9 +1423,6 @@ export default function AppsflyerDashboard() {
                             <span className="font-medium text-purple-600 dark:text-purple-400">
                               {parseInt(row.p360event).toLocaleString()}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-semibold">{row.impressions ? parseInt(String(row.impressions)).toLocaleString() : '0'}</span>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1398,11 +1479,11 @@ export default function AppsflyerDashboard() {
 
         {/* Campaign Details by Source */}
         <Card className="border-t-4 border-t-green-500/20">
-          <CardHeader className="pb-4">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-xl">Campaign Details by Source</CardTitle>
-                <CardDescription className="mt-1">
+                <CardDescription className="mt-0">
                   Drill down into specific campaign sources and performance
                 </CardDescription>
               </div>
@@ -1412,11 +1493,13 @@ export default function AppsflyerDashboard() {
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-2 -mt-6">
             {/* Enhanced Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-lg border bg-muted/30">
-              {/* Campaign Filter */}
-              <div className="space-y-2" ref={campaignDropdownRef}>
+            <div className="p-4 rounded-lg border bg-muted/50">
+              {/* Single Row: Campaign (40%) | Source (40%) | Buttons (20%) */}
+              <div className="flex items-start gap-3">
+                {/* Campaign Filter - 40% */}
+                <div className="flex-[0_0_40%] space-y-2" ref={campaignDropdownRef}>
                 <Label htmlFor="campaign-select" className="text-sm font-semibold flex items-center gap-2">
                   <BarChart3 className="h-4 w-4" />
                   Campaign
@@ -1502,10 +1585,10 @@ export default function AppsflyerDashboard() {
                     </div>
                   )}
                 </div>
-              </div>
+                </div>
 
-              {/* Source Filter with Multi-Select Dropdown and Search */}
-              <div className="space-y-2" ref={sourceDropdownRef}>
+              {/* Source Filter - 40% */}
+              <div className="flex-[0_0_40%] space-y-2" ref={sourceDropdownRef}>
                 <Label className="text-sm font-semibold flex items-center gap-2">
                   <Filter className="h-4 w-4" />
                   Sources ({selectedSources.length} selected)
@@ -1610,11 +1693,14 @@ export default function AppsflyerDashboard() {
                   )}
                 </div>
                 {selectedSources.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div 
+                    style={{ width: sourceDropdownWidth > 0 ? `${sourceDropdownWidth}px` : "auto" }}
+                    className="flex gap-2 overflow-x-auto pb-2 mt-2 [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-blue-100/20 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gradient-to-r [&::-webkit-scrollbar-thumb]:from-blue-400 [&::-webkit-scrollbar-thumb]:to-blue-600 [&::-webkit-scrollbar-thumb]:rounded-full"
+                  >
                     {selectedSources.map(sourceName => {
                       const source = sourceList.find(s => s.source === sourceName);
                       return source ? (
-                        <Badge key={sourceName} variant="secondary" className="gap-2">
+                        <Badge key={sourceName} variant="secondary" className="gap-2 flex-shrink-0 whitespace-nowrap">
                           {source.source}
                           <button
                             onClick={() => handleSourceToggle(sourceName)}
@@ -1629,67 +1715,77 @@ export default function AppsflyerDashboard() {
                 )}
               </div>
 
-              {/* GO Button */}
-              <div className="flex items-end">
-                <Button 
-                  onClick={handleSearch}
-                  size="lg"
-                  className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Search className="h-4 w-4" />
-                  Apply Filters
-                </Button>
+              {/* Buttons Section - 20% */}
+              <div className="flex-[0_0_20%] flex flex-col gap-2 justify-end">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="showDateColumnDetail"
+                      checked={showDateColumn}
+                      onChange={(e) => setShowDateColumn(e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label htmlFor="showDateColumnDetail" className="text-xs font-medium">
+                       Show Date
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="showCParamColumnDetail"
+                      checked={showCParamColumn}
+                      onChange={(e) => setShowCParamColumn(e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label htmlFor="showCParamColumnDetail" className="text-xs font-medium">
+                       C Parameter
+                    </Label>
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button 
+                        onClick={handleSearch}
+                        size="icon"
+                        className="bg-blue-600 hover:bg-blue-700 text-white min-w-30 mr-6"
+                        title="Apply Filters" 
+                      >
+                        <Search className="h-4 w-4 mr-2" /> Apply Filter
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Apply Filters</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </div>
-
-            {/* Search and Column Toggle Controls for Second Table */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-4 p-4 bg-muted/30 rounded-lg">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="showDateColumnDetail"
-                    checked={showDateColumn}
-                    onChange={(e) => setShowDateColumn(e.target.checked)}
-                    className="rounded"
-                  />
-                  <Label htmlFor="showDateColumnDetail" className="text-sm font-medium">
-                    Show Date
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="showCParamColumnDetail"
-                    checked={showCParamColumn}
-                    onChange={(e) => setShowCParamColumn(e.target.checked)}
-                    className="rounded"
-                  />
-                  <Label htmlFor="showCParamColumnDetail" className="text-sm font-medium">
-                    Show C Parameter
-                  </Label>
-                </div>
-              </div>
             </div>
 
             {/* Table */}
             <div className="rounded-lg border overflow-hidden">
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-100/20 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-blue-400 [&::-webkit-scrollbar-thumb]:to-blue-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                 <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                    <TableRow className="border-b-2 border-green-500/20">
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
-                        onClick={() => handleSortDetail(isShowingCampaigns ? "campaignName" : "source")}
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
+                        onClick={() => handleSortDetail("campaignName")}
                       >
                         <div className="flex items-center justify-center font-semibold">
-                          {isShowingCampaigns ? "Campaign" : "Source"}
-                          {getSortIcon(isShowingCampaigns ? "campaignName" : "source", sortConfigDetail)}
+                          Campaign
+                          {getSortIcon("campaignName", sortConfigDetail)}
                         </div>
                       </TableHead>
                       {showDateColumn && (
                         <TableHead 
-                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                            showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                          }`}
                           onClick={() => handleSortDetail("date")}
                         >
                           <div className="flex items-center justify-center font-semibold">
@@ -1698,9 +1794,30 @@ export default function AppsflyerDashboard() {
                           </div>
                         </TableHead>
                       )}
-                      <TableHead className="text-center font-semibold">PID</TableHead>
+                      <TableHead className={`text-center font-semibold bg-background ${
+                        showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                        showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                        'text-sm px-3 py-2'
+                      }`}>PID</TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
+                        onClick={() => handleSortDetail("impressions")}
+                      >
+                        <div className="flex items-center justify-center font-semibold">
+                          Impressions
+                          {getSortIcon("impressions", sortConfigDetail)}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSortDetail("clicks")}
                       >
                         <div className="flex items-center justify-center font-semibold">
@@ -1710,7 +1827,9 @@ export default function AppsflyerDashboard() {
                       </TableHead>
                       {showCParamColumn && (
                         <TableHead 
-                          className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                          className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                            showDateColumn ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2 py-1'
+                          }`}
                           onClick={() => handleSortDetail("campaign_c")}
                         >
                           <div className="flex items-center justify-center font-semibold">
@@ -1720,7 +1839,11 @@ export default function AppsflyerDashboard() {
                         </TableHead>
                       )}
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSortDetail("installs")}
                       >
                         <div className="flex items-center justify-center font-semibold">
@@ -1729,7 +1852,11 @@ export default function AppsflyerDashboard() {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSortDetail("event")}
                       >
                         <div className="flex items-center justify-center font-semibold">
@@ -1738,7 +1865,11 @@ export default function AppsflyerDashboard() {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
+                        className={`text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5 ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSortDetail("p360Installs")}
                       >
                         <div className="flex items-center justify-center font-semibold">
@@ -1747,21 +1878,16 @@ export default function AppsflyerDashboard() {
                         </div>
                       </TableHead>
                       <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5"
+                        className={`text-center cursor-pointer select-none hover:bg-purple-500/10 transition-colors bg-purple-500/5 ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
                         onClick={() => handleSortDetail("p360Events")}
                       >
                         <div className="flex items-center justify-center font-semibold">
                           P360 Events
                           {getSortIcon("p360Events", sortConfigDetail)}
-                        </div>
-                      </TableHead>
-                      <TableHead 
-                        className="text-center cursor-pointer select-none hover:bg-muted/80 transition-colors"
-                        onClick={() => handleSortDetail("impressions")}
-                      >
-                        <div className="flex items-center justify-center font-semibold">
-                          Impressions
-                          {getSortIcon("impressions", sortConfigDetail)}
                         </div>
                       </TableHead>
                     </TableRow>
@@ -1787,16 +1913,21 @@ export default function AppsflyerDashboard() {
                       filteredDetailedData.map((row) => (
                         <TableRow 
                           key={row.id}
-                          className="hover:bg-muted/50 transition-colors group"
+                          className={`hover:bg-muted/50 transition-colors group ${
+                            showDateColumn && showCParamColumn ? 'text-[10px]' : 
+                            showDateColumn || showCParamColumn ? 'text-xs' : 
+                            'text-sm'
+                          }`}
                         >
                           <TableCell>
                             <div className="font-medium group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
-                              {isShowingCampaigns ? row.campaignName : row.source}
+                              <div>{row.campaignName}</div>
+                              <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{row.bundleid || '-'}</div>
                             </div>
                           </TableCell>
                           {showDateColumn && (
                             <TableCell className="text-center">
-                              <span className="text-sm">{row.date || '-'}</span>
+                              <span className={showDateColumn && showCParamColumn ? 'text-[10px]' : showDateColumn || showCParamColumn ? 'text-xs' : 'text-sm'}>{row.date || '-'}</span>
                             </TableCell>
                           )}
                           <TableCell>
@@ -1820,6 +1951,9 @@ export default function AppsflyerDashboard() {
                             </Tooltip>
                           </TableCell>
                           <TableCell className="text-right">
+                            <span className="font-semibold text-muted-foreground">{row.impressions ? row.impressions.toLocaleString() : '0'}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
                               <span className="font-semibold">{row.clicks.toLocaleString()}</span>
                               <MousePointerClick className="h-3.5 w-3.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -1827,7 +1961,7 @@ export default function AppsflyerDashboard() {
                           </TableCell>
                           {showCParamColumn && (
                             <TableCell className="text-center">
-                              <span className="text-sm font-mono">{row.campaign_c || '-'}</span>
+                              <span className={`font-mono ${showDateColumn && showCParamColumn ? 'text-[10px]' : showDateColumn || showCParamColumn ? 'text-xs' : 'text-sm'}`}>{row.campaign_c || '-'}</span>
                             </TableCell>
                           )}
                           <TableCell className="text-right">
@@ -1850,9 +1984,6 @@ export default function AppsflyerDashboard() {
                             <span className="font-medium text-purple-600 dark:text-purple-400">
                               {row.p360Events.toLocaleString()}
                             </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <span className="font-semibold">{row.impressions ? row.impressions.toLocaleString() : '0'}</span>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1914,26 +2045,6 @@ export default function AppsflyerDashboard() {
             )}
           </CardContent>
         </Card>
-        <Dialog open={campaignDetailsOpen} onOpenChange={setCampaignDetailsOpen}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3">
-              
-                <div>
-                  <div className="text-xl font-bold">{selectedCampaignDetails?.campaign}</div>
-                  <code className="text-xs text-muted-foreground font-normal">
-                    {selectedCampaignDetails?.bundleid}
-                  </code>
-                </div>
-              </DialogTitle>
-              <DialogDescription>
-                Detailed campaign information and performance metrics
-              </DialogDescription>
-            </DialogHeader>
-
-           
-          </DialogContent>
-        </Dialog>
       </div>
     </TooltipProvider>
   );
