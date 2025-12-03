@@ -235,12 +235,12 @@ export default function AppsflyerDashboard() {
     return () => window.removeEventListener("resize", measureDropdownWidth);
   }, []);
 
-  // Fetch campaign list and campaign performance data
+  // Fetch campaign list on mount and when date changes
   useEffect(() => {
     const fetchCampaignList = async () => {
       setIsCampaignListLoading(true);
       try {
-        const response = await fetch('/api/appsflyer-campaign-list');
+        const response = await fetch(`/api/appsflyer-campaign-list?fromDate=${format(dateRange.from, 'yyyy-MM-dd')}&toDate=${format(dateRange.to, 'yyyy-MM-dd')}`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch campaign list');
@@ -265,76 +265,11 @@ export default function AppsflyerDashboard() {
       }
     };
 
-    const fetchCampaignPerformance = async () => {
-      setIsCampaignPerformanceLoading(true);
-      console.log('[Table 1] Starting campaign performance fetch...', { page: currentPageTable1, limit: PAGE_SIZE });
-      const startTime = performance.now();
-      try {
-        const response = await fetch('/api/appsflyer-camp-details', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            bundle_id: 'all',
-            source: 'all',
-            page: currentPageTable1,
-            limit: PAGE_SIZE,
-            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
-            toDate: format(dateRange.to, 'yyyy-MM-dd'),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch campaign performance');
-        }
-
-        const result = await response.json();
-        const endTime = performance.now();
-        console.log(`[Table 1] API Response received in ${(endTime - startTime).toFixed(2)}ms`, { 
-          success: result.success, 
-          dataLength: result.data?.length, 
-          total_pages: result.total_pages, 
-          total: result.total 
-        });
-        
-        if (result.success && Array.isArray(result.data)) {
-          console.log(`[Table 1] Processing ${result.data.length} rows...`);
-          const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
-            ...item,
-            campaign: item.campaigns || item.bundleid,
-            event: item.event,
-            p360installs: item.p360installs,
-            p360event: item.p360event,
-          }));
-          setCampaignPerformance(enrichedData);
-          setTotalPagesTable1(result.total_pages || 0);
-          setTotalRecordsTable1(result.total || 0);
-          console.log('[Table 1] Data set successfully', { rows: enrichedData.length, totalPages: result.total_pages, totalRecords: result.total });
-        } else {
-          console.warn('[Table 1] Invalid response format:', result);
-          toast.error('Invalid campaign performance data format');
-          setCampaignPerformance([]);
-          setTotalPagesTable1(0);
-          setTotalRecordsTable1(0);
-        }
-      } catch (error) {
-        console.error('[Table 1] Error fetching campaign performance:', error);
-        toast.error('Failed to load campaign performance');
-        setCampaignPerformance([]);
-        setTotalPagesTable1(0);
-        setTotalRecordsTable1(0);
-      } finally {
-        setIsCampaignPerformanceLoading(false);
-        console.log('[Table 1] Loading complete');
-      }
-    };
-
     // Reset to page 1 when date changes
     setCurrentPageTable1(1);
     
     fetchCampaignList();
-    fetchCampaignPerformance();
+    // Don't fetch campaign performance here - let the next useEffect handle it
   }, [dateRange]);
 
   // Fetch campaign performance when page changes (for Table 1 pagination)
@@ -453,8 +388,7 @@ export default function AppsflyerDashboard() {
       const startTime = performance.now();
       try {
         // Build the request payload
-        // Always use "all" for campaigns in Table 2, only filter by sources
-        let bundleId = "all";
+        let bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
         let source = "all";
 
         if (selectedSources.length > 0) {
@@ -548,7 +482,7 @@ export default function AppsflyerDashboard() {
       console.log('[Table 2 - Pagination] Fetching page...', { page: currentPageTable2, limit: PAGE_SIZE });
       const startTime = performance.now();
       try {
-        let bundleId = "all";
+        let bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
         let source = "all";
 
         if (selectedSources.length > 0) {
