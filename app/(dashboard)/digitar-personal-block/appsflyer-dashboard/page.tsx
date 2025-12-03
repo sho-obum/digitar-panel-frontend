@@ -126,7 +126,7 @@ export default function AppsflyerDashboard() {
   const [campaignNameSearch, setCampaignNameSearch] = useState<string>("");
   const [debouncedCampaignSearch, setDebouncedCampaignSearch] = useState<string>("");
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
-  const [campaignSearch, setCampaignSearch] = useState<string>(""); // Local search for campaign dropdown
+  const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [showDateColumn, setShowDateColumn] = useState(false);
   const [showCParamColumn, setShowCParamColumn] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
@@ -141,23 +141,27 @@ export default function AppsflyerDashboard() {
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [isSourceDropdownOpen, setIsSourceDropdownOpen] = useState(false);
   const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
-  const [campDetails, setCampDetails] = useState<CampDetailsItem[]>([]);
-  const [isCampDetailsLoading, setIsCampDetailsLoading] = useState(false);
-  const [searchTrigger, setSearchTrigger] = useState(0); // Timestamp to trigger search
+  const [searchTrigger, setSearchTrigger] = useState(0);
   
-  // Pagination for Table 1 (Campaign Performance)
-  const [currentPageTable1, setCurrentPageTable1] = useState(1);
-  const [totalPagesTable1, setTotalPagesTable1] = useState(0);
-  const [totalRecordsTable1, setTotalRecordsTable1] = useState(0);
+  // Simplified Table 1 State
+  const [table1State, setTable1State] = useState({
+    data: [] as CampaignPerformanceItem[],
+    loading: false,
+    currentPage: 1,
+    totalPages: 0,
+    totalRecords: 0,
+  });
   
-  // Pagination for Table 2 (Campaign Details by Source)
-  const [currentPageTable2, setCurrentPageTable2] = useState(1);
-  const [totalPagesTable2, setTotalPagesTable2] = useState(0);
-  const [totalRecordsTable2, setTotalRecordsTable2] = useState(0);
+  // Simplified Table 2 State
+  const [table2State, setTable2State] = useState({
+    data: [] as CampDetailsItem[],
+    loading: false,
+    currentPage: 1,
+    totalPages: 0,
+    totalRecords: 0,
+  });
   
   const PAGE_SIZE = 10;
-  const [campaignPerformance, setCampaignPerformance] = useState<CampaignPerformanceItem[]>([]);
-  const [isCampaignPerformanceLoading, setIsCampaignPerformanceLoading] = useState(false);
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
     return {
@@ -179,6 +183,28 @@ export default function AppsflyerDashboard() {
   const sourceDropdownRef = useRef<HTMLDivElement>(null);
   const searchDropdownRef = useRef<HTMLDivElement>(null);
   const [sourceDropdownWidth, setSourceDropdownWidth] = useState<number>(0);
+
+  // Reusable API fetch function
+  const fetchAppsflyerData = async (params: {
+    bundle_id: string;
+    source: string;
+    page: number;
+    limit: number;
+    fromDate: string;
+    toDate: string;
+  }) => {
+    const response = await fetch('/api/appsflyer-camp-details', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch data');
+    }
+    
+    return response.json();
+  };
 
   // Debounce campaign search
   useEffect(() => {
@@ -242,69 +268,47 @@ export default function AppsflyerDashboard() {
       try {
         const response = await fetch(`/api/appsflyer-campaign-list?fromDate=${format(dateRange.from, 'yyyy-MM-dd')}&toDate=${format(dateRange.to, 'yyyy-MM-dd')}`);
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch campaign list');
-        }
+        if (!response.ok) throw new Error('Failed to fetch campaign list');
         
         const result = await response.json();
         if (result.success && Array.isArray(result.data)) {
           setCampaignList(result.data);
-          // Set default selection to "all" campaigns for Table 2
           setSelectedCampaign("all");
           setSelectedBundleId("");
-          // Trigger initial fetch for Table 2 with default filters
           setSearchTrigger(Date.now());
         } else {
           toast.error('Invalid campaign data format');
         }
       } catch (error) {
-        console.error('Error fetching campaign list:', error);
         toast.error('Failed to load campaign list');
       } finally {
         setIsCampaignListLoading(false);
       }
     };
 
-    // Reset to page 1 when date changes
-    setCurrentPageTable1(1);
-    
+    setTable1State(prev => ({ ...prev, currentPage: 1 }));
     fetchCampaignList();
-    // Don't fetch campaign performance here - let the next useEffect handle it
   }, [dateRange]);
 
-  // Fetch campaign performance when page changes (for Table 1 pagination)
+  // Fetch Table 1 (Campaign Performance)
   useEffect(() => {
-    
-    const fetchCampaignPerformancePaginated = async () => {
-      setIsCampaignPerformanceLoading(true);
-      console.log('[Table 1 - Page Change] Fetching page', currentPageTable1);
-      const startTime = performance.now();
+    const fetchTable1Data = async () => {
+      setTable1State(prev => ({ ...prev, loading: true }));
       try {
-        const response = await fetch('/api/appsflyer-camp-details', {
+        const response = await fetch('/api/appsflyer-camp-details-by-date', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            bundle_id: 'all',
-            source: 'all',
-            page: currentPageTable1,
+            page: table1State.currentPage,
             limit: PAGE_SIZE,
             fromDate: format(dateRange.from, 'yyyy-MM-dd'),
             toDate: format(dateRange.to, 'yyyy-MM-dd'),
           }),
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch campaign performance');
-        }
-
+        
+        if (!response.ok) throw new Error('Failed to fetch data');
+        
         const result = await response.json();
-        const endTime = performance.now();
-        console.log(`[Table 1 - Page Change] Response in ${(endTime - startTime).toFixed(2)}ms`, { 
-          page: currentPageTable1, 
-          dataLength: result.data?.length 
-        });
         
         if (result.success && Array.isArray(result.data)) {
           const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
@@ -314,28 +318,27 @@ export default function AppsflyerDashboard() {
             p360installs: item.p360installs,
             p360event: item.p360event,
           }));
-          setCampaignPerformance(enrichedData);
-          setTotalPagesTable1(result.total_pages || 0);
-          setTotalRecordsTable1(result.total || 0);
+          
+          setTable1State(prev => ({
+            ...prev,
+            data: enrichedData,
+            totalPages: result.total_pages || 0,
+            totalRecords: result.total || 0,
+          }));
         } else {
           toast.error('Invalid campaign performance data format');
-          setCampaignPerformance([]);
-          setTotalPagesTable1(0);
-          setTotalRecordsTable1(0);
+          setTable1State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
         }
       } catch (error) {
-        console.error('[Table 1 - Page Change] Error:', error);
         toast.error('Failed to load campaign performance');
-        setCampaignPerformance([]);
-        setTotalPagesTable1(0);
-        setTotalRecordsTable1(0);
+        setTable1State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
       } finally {
-        setIsCampaignPerformanceLoading(false);
+        setTable1State(prev => ({ ...prev, loading: false }));
       }
     };
 
-    fetchCampaignPerformancePaginated();
-  }, [currentPageTable1, dateRange]);
+    fetchTable1Data();
+  }, [table1State.currentPage, dateRange]);
 
   // Fetch source list based on selected campaign
   useEffect(() => {
@@ -350,12 +353,10 @@ export default function AppsflyerDashboard() {
         const bundleId = selectedCampaign === "all" ? "" : selectedBundleId;
         const type = selectedCampaign === "all" ? "all" : "single";
         
-        const url = `/api/appsflyer-source-list?id=${bundleId}&type=${type}`;
+        const url = `/api/appsflyer-source-list?id=${bundleId}&type=${type}&fromDate=${format(dateRange.from, 'yyyy-MM-dd')}&toDate=${format(dateRange.to, 'yyyy-MM-dd')}`;
         const response = await fetch(url);
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch source list');
-        }
+        if (!response.ok) throw new Error('Failed to fetch source list');
         
         const result = await response.json();
         if (result.success && Array.isArray(result.data)) {
@@ -365,7 +366,6 @@ export default function AppsflyerDashboard() {
           setSourceList([]);
         }
       } catch (error) {
-        console.error('Error fetching source list:', error);
         toast.error('Failed to load source list');
         setSourceList([]);
       } finally {
@@ -374,60 +374,28 @@ export default function AppsflyerDashboard() {
     };
 
     fetchSourceList();
-  }, [selectedCampaign, selectedBundleId]);
+  }, [selectedCampaign, selectedBundleId, dateRange]);
 
-  // Fetch campaign details by source with pagination
+  // Unified Table 2 fetch (Campaign Details by Source)
   useEffect(() => {
-    const fetchCampDetails = async () => {
-      setIsCampDetailsLoading(true);
-      
-      // ALWAYS use page 1 on initial search (when GO is clicked)
-      const pageToUse = 1;
-      
-      console.log('[Table 2] Starting fetch...', { selectedCampaign, selectedSources, page: pageToUse, limit: PAGE_SIZE });
-      const startTime = performance.now();
+    if (searchTrigger === 0) return;
+
+    const fetchTable2Data = async () => {
+      setTable2State(prev => ({ ...prev, loading: true }));
       try {
-        // Build the request payload
-        let bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
-        let source = "all";
+        const bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
+        const source = selectedSources.length > 0 ? selectedSources.join(",") : "all";
 
-        if (selectedSources.length > 0) {
-          source = selectedSources.join(",");
-        }
-
-        console.log('[Table 2] API Payload:', { bundle_id: bundleId, source: source, page: pageToUse, limit: PAGE_SIZE });
-
-        const response = await fetch("/api/appsflyer-camp-details", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            bundle_id: bundleId,
-            source: source,
-            page: pageToUse,
-            limit: PAGE_SIZE,
-            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
-            toDate: format(dateRange.to, 'yyyy-MM-dd'),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch campaign details");
-        }
-
-        const result = await response.json();
-        const endTime = performance.now();
-        console.log(`[Table 2] Response received in ${(endTime - startTime).toFixed(2)}ms`, { 
-          success: result.success, 
-          dataLength: result.data?.length, 
-          total_pages: result.total_pages, 
-          total: result.total 
+        const result = await fetchAppsflyerData({
+          bundle_id: bundleId,
+          source: source,
+          page: table2State.currentPage,
+          limit: PAGE_SIZE,
+          fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+          toDate: format(dateRange.to, 'yyyy-MM-dd'),
         });
         
         if (result.success && Array.isArray(result.data)) {
-          console.log(`[Table 2] Processing ${result.data.length} rows...`);
-          // Map API response to component type - use actual p360 values from API
           const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
             bundleid: item.bundleid,
             source: item.source,
@@ -441,118 +409,27 @@ export default function AppsflyerDashboard() {
             date: item.date,
             impressions: item.impressions,
           }));
-          setCampDetails(enrichedData);
-          // Update pagination info from response
-          setTotalPagesTable2(result.total_pages || 0);
-          setTotalRecordsTable2(result.total || 0);
-          // NOW update the state to page 1 after successful fetch
-          setCurrentPageTable2(1);
-          console.log('[Table 2] Data set successfully', { rows: enrichedData.length, totalPages: result.total_pages, totalRecords: result.total });
-        } else {
-          console.warn('[Table 2] Invalid response format:', result);
-          toast.error("Invalid campaign details data format");
-          setCampDetails([]);
-          setTotalPagesTable2(0);
-          setTotalRecordsTable2(0);
-        }
-      } catch (error) {
-        console.error("[Table 2] Error fetching campaign details:", error);
-        toast.error("Failed to load campaign details");
-        setCampDetails([]);
-        setTotalPagesTable2(0);
-        setTotalRecordsTable2(0);
-      } finally {
-        setIsCampDetailsLoading(false);
-        console.log('[Table 2] Loading complete');
-      }
-    };
-
-    // Only fetch if user clicked GO button (searchTrigger changed)
-    if (searchTrigger > 0) {
-      // Reset to page 1 when date changes
-      setCurrentPageTable2(1);
-      fetchCampDetails();
-    }
-  }, [searchTrigger, dateRange]);
-
-  // Fetch when pagination changes (only if hasSearched is true)
-  useEffect(() => {
-    const fetchCampDetails = async () => {
-      setIsCampDetailsLoading(true);
-      console.log('[Table 2 - Pagination] Fetching page...', { page: currentPageTable2, limit: PAGE_SIZE });
-      const startTime = performance.now();
-      try {
-        let bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
-        let source = "all";
-
-        if (selectedSources.length > 0) {
-          source = selectedSources.join(",");
-        }
-
-        console.log('[Table 2 - Pagination] API Payload:', { bundle_id: bundleId, source: source, page: currentPageTable2, limit: PAGE_SIZE });
-
-        const response = await fetch("/api/appsflyer-camp-details", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            bundle_id: bundleId,
-            source: source,
-            page: currentPageTable2,
-            limit: PAGE_SIZE,
-            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
-            toDate: format(dateRange.to, 'yyyy-MM-dd'),
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch campaign details");
-        }
-
-        const result = await response.json();
-        const endTime = performance.now();
-        console.log(`[Table 2 - Pagination] Response in ${(endTime - startTime).toFixed(2)}ms`, { 
-          page: currentPageTable2, 
-          dataLength: result.data?.length 
-        });
-        
-        if (result.success && Array.isArray(result.data)) {
-          const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
-            bundleid: item.bundleid,
-            source: item.source,
-            pid: item.pid,
-            clicks: item.clicks,
-            installs: item.installs,
-            event: item.event,
-            p360installs: item.p360installs,
-            p360event: item.p360event,
+          
+          setTable2State(prev => ({
+            ...prev,
+            data: enrichedData,
+            totalPages: result.total_pages || 0,
+            totalRecords: result.total || 0,
           }));
-          setCampDetails(enrichedData);
-          setTotalPagesTable2(result.total_pages || 0);
-          setTotalRecordsTable2(result.total || 0);
         } else {
           toast.error("Invalid campaign details data format");
-          setCampDetails([]);
-          setTotalPagesTable2(0);
-          setTotalRecordsTable2(0);
+          setTable2State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
         }
       } catch (error) {
-        console.error("[Table 2 - Pagination] Error:", error);
         toast.error("Failed to load campaign details");
-        setCampDetails([]);
-        setTotalPagesTable2(0);
-        setTotalRecordsTable2(0);
+        setTable2State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
       } finally {
-        setIsCampDetailsLoading(false);
+        setTable2State(prev => ({ ...prev, loading: false }));
       }
     };
 
-    // Only fetch on pagination changes if searchTrigger is set and we're past page 1
-    if (searchTrigger > 0 && currentPageTable2 > 1) {
-      fetchCampDetails();
-    }
-  }, [searchTrigger, currentPageTable2]);
+    fetchTable2Data();
+  }, [searchTrigger, table2State.currentPage, dateRange, selectedCampaign, selectedBundleId, selectedSources]);
 
   const datePresets = [
     {
@@ -642,23 +519,27 @@ export default function AppsflyerDashboard() {
 
   // Calculate summary stats from campaign performance data
   const summaryStats = useMemo(() => {
-    const totalClicks = campaignPerformance.reduce((sum, item) => sum + parseInt(item.clicks), 0);
-    const totalInstalls = campaignPerformance.reduce((sum, item) => sum + parseInt(item.installs), 0);
-    const totalEvents = campaignPerformance.reduce((sum, item) => sum + parseInt(item.event), 0);
-    const totalP360Installs = campaignPerformance.reduce((sum, item) => sum + parseInt(item.p360installs), 0);
+    const totalClicks = table1State.data.reduce((sum, item) => sum + parseInt(item.clicks), 0);
+    const totalInstalls = table1State.data.reduce((sum, item) => sum + parseInt(item.installs), 0);
+    const totalEvents = table1State.data.reduce((sum, item) => sum + parseInt(item.event), 0);
+    const totalP360Installs = table1State.data.reduce((sum, item) => sum + parseInt(item.p360installs), 0);
+    const totalP360Events = table1State.data.reduce((sum, item) => sum + parseInt(item.p360event), 0);
     
     const conversionRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
     const eventRate = totalInstalls > 0 ? (totalEvents / totalInstalls) * 100 : 0;
+    const p360EventRate = totalP360Installs > 0 ? (totalP360Events / totalP360Installs) * 100 : 0;
     
     return {
       totalClicks,
       totalInstalls,
       totalEvents,
       totalP360Installs,
+      totalP360Events,
       conversionRate,
       eventRate,
+      p360EventRate,
     };
-  }, [campaignPerformance]);
+  }, [table1State.data]);
 
   // Sorting function for main table
   const handleSort = (key: string) => {
@@ -680,9 +561,8 @@ export default function AppsflyerDashboard() {
 
   // Sort and filter campaign performance data
   const sortedCampaignPerformance = useMemo(() => {
-    let filtered = campaignPerformance;
+    let filtered = table1State.data;
     
-    // Apply campaign name search filter
     if (debouncedCampaignSearch.trim()) {
       filtered = filtered.filter(row => 
         row.campaign.toLowerCase().includes(debouncedCampaignSearch.toLowerCase())
@@ -695,7 +575,6 @@ export default function AppsflyerDashboard() {
       let aValue: any = a[sortConfig.key as keyof typeof a];
       let bValue: any = b[sortConfig.key as keyof typeof b];
       
-      // Convert string numbers to actual numbers for comparison
       if (typeof aValue === "string" && !isNaN(Number(aValue))) {
         aValue = parseInt(aValue);
       }
@@ -715,17 +594,16 @@ export default function AppsflyerDashboard() {
       
       return 0;
     });
-  }, [sortConfig, campaignPerformance, debouncedCampaignSearch]);
+  }, [sortConfig, table1State.data, debouncedCampaignSearch]);
 
   // Filter detailed data based on selected campaign and selected sources
   const filteredDetailedData = useMemo(() => {
-    let filtered = campDetails.map(item => {
-      // Find campaign name from campaignList using bundleid
+    let filtered = table2State.data.map(item => {
       const campaignItem = campaignList.find(c => c.id === item.bundleid);
       const campaignName = campaignItem ? campaignItem.campaign : item.bundleid;
       
       return {
-        id: Math.random(), // Use random id since API doesn't provide one
+        id: Math.random(),
         bundleid: item.bundleid,
         campaignName: campaignName,
         source: item.source,
@@ -741,7 +619,6 @@ export default function AppsflyerDashboard() {
       };
     });
 
-    // Apply sorting
     if (sortConfigDetail.key) {
       filtered.sort((a, b) => {
         const aValue = a[sortConfigDetail.key as keyof typeof a];
@@ -762,10 +639,9 @@ export default function AppsflyerDashboard() {
     }
 
     return filtered;
-  }, [campDetails, sortConfigDetail, campaignList]);
+  }, [table2State.data, sortConfigDetail, campaignList]);
 
   const handleExportData = () => {
-    // Export campaign performance data
     const headers = ["Campaign Name", "Bundle ID"];
     if (showDateColumn) headers.push("Date");
     headers.push("Clicks");
@@ -774,7 +650,7 @@ export default function AppsflyerDashboard() {
     
     const csv = [
       headers,
-      ...campaignPerformance.map(row => {
+      ...table1State.data.map(row => {
         const data = [row.campaign, row.bundleid];
         if (showDateColumn) data.push(row.date || '');
         data.push(row.clicks);
@@ -846,35 +722,33 @@ export default function AppsflyerDashboard() {
 
   // Handle GO button click
   const handleSearch = () => {
-    // ALWAYS reset to page 1 when user clicks GO
-    setCurrentPageTable2(1);
-    // Then trigger the fetch
+    setTable2State(prev => ({ ...prev, currentPage: 1 }));
     setSearchTrigger(Date.now());
   };
 
   // Pagination handlers for Table 1
   const handlePreviousPageTable1 = () => {
-    if (currentPageTable1 > 1) {
-      setCurrentPageTable1(currentPageTable1 - 1);
+    if (table1State.currentPage > 1) {
+      setTable1State(prev => ({ ...prev, currentPage: prev.currentPage - 1 }));
     }
   };
 
   const handleNextPageTable1 = () => {
-    if (currentPageTable1 < totalPagesTable1) {
-      setCurrentPageTable1(currentPageTable1 + 1);
+    if (table1State.currentPage < table1State.totalPages) {
+      setTable1State(prev => ({ ...prev, currentPage: prev.currentPage + 1 }));
     }
   };
 
   // Pagination handlers for Table 2
   const handlePreviousPageTable2 = () => {
-    if (currentPageTable2 > 1) {
-      setCurrentPageTable2(currentPageTable2 - 1);
+    if (table2State.currentPage > 1) {
+      setTable2State(prev => ({ ...prev, currentPage: prev.currentPage - 1 }));
     }
   };
 
   const handleNextPageTable2 = () => {
-    if (currentPageTable2 < totalPagesTable2) {
-      setCurrentPageTable2(currentPageTable2 + 1);
+    if (table2State.currentPage < table2State.totalPages) {
+      setTable2State(prev => ({ ...prev, currentPage: prev.currentPage + 1 }));
     }
   };
 
@@ -948,7 +822,7 @@ export default function AppsflyerDashboard() {
                       <Button
                         key={preset.id}
                         variant={
-                          dateRange.preset === preset.id ? "default" : "outline"
+                          pendingDateRange.preset === preset.id ? "default" : "outline"
                         }
                         size="sm"
                         onClick={() => {
@@ -1006,7 +880,7 @@ export default function AppsflyerDashboard() {
         </div>
 
         {/* Compact Summary Stats - Single Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           {/* Total Clicks */}
           <div className="relative overflow-hidden rounded-lg border bg-card p-3 border-l-4 border-l-blue-500 hover:shadow-md transition-all group">
             <div className="flex items-center justify-between">
@@ -1060,6 +934,21 @@ export default function AppsflyerDashboard() {
               <BarChart3 className="h-7 w-7 text-orange-500/70" />
             </div>
           </div>
+
+          {/* P360 Events */}
+          <div className="relative overflow-hidden rounded-lg border bg-card p-3 border-l-4 border-l-pink-500 hover:shadow-md transition-all group">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-0.5">P360 Events</p>
+                <p className="text-xl font-bold">{summaryStats.totalP360Events.toLocaleString()}</p>
+                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                  <TrendingUp className="h-2.5 w-2.5 text-green-500" />
+                  {summaryStats.p360EventRate.toFixed(2)}% Rate
+                </p>
+              </div>
+              <Activity className="h-7 w-7 text-pink-500/70" />
+            </div>
+          </div>
         </div>
 
         {/* Campaign Performance Table */}
@@ -1074,7 +963,7 @@ export default function AppsflyerDashboard() {
               </div>
               <Badge variant="outline" className="gap-1">
                 <BarChart3 className="h-3 w-3" />
-                {campaignPerformance.length} Records (Page {currentPageTable1} of {totalPagesTable1})
+                {table1State.data.length} Records (Page {table1State.currentPage} of {table1State.totalPages})
               </Badge>
             </div>
           </CardHeader>
@@ -1100,7 +989,7 @@ export default function AppsflyerDashboard() {
                     className="pl-10"
                   />
                   {showSearchDropdown && sortedCampaignPerformance.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-50 max-h-60 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-[99999] max-h-60 overflow-y-auto">
                       <div className="p-2">
                         <p className="text-xs text-muted-foreground mb-2">{sortedCampaignPerformance.length} result{sortedCampaignPerformance.length !== 1 ? 's' : ''} found</p>
                         {sortedCampaignPerformance.slice(0, 10).map((item, idx) => (
@@ -1278,7 +1167,7 @@ export default function AppsflyerDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isCampaignPerformanceLoading ? (
+                    {table1State.loading ? (
                       <>
                         {[...Array(10)].map((_, i) => (
                           <TableRow key={i}>
@@ -1362,7 +1251,7 @@ export default function AppsflyerDashboard() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
+                        <TableCell colSpan={8 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
                           <div className="flex items-center justify-center">
                             <p className="text-sm text-muted-foreground">No campaign data available</p>
                           </div>
@@ -1375,17 +1264,17 @@ export default function AppsflyerDashboard() {
             </div>
 
             {/* Pagination Controls for Table 1 */}
-            {totalPagesTable1 > 0 && (
+            {table1State.totalPages > 0 && (
               <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/30 rounded-b-lg">
                 <div className="text-sm text-muted-foreground">
-                  Page <span className="font-semibold text-foreground">{currentPageTable1}</span> of <span className="font-semibold text-foreground">{totalPagesTable1}</span>
+                  Page <span className="font-semibold text-foreground">{table1State.currentPage}</span> of <span className="font-semibold text-foreground">{table1State.totalPages}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handlePreviousPageTable1}
-                    disabled={currentPageTable1 === 1 || isCampaignPerformanceLoading}
+                    disabled={table1State.currentPage === 1 || table1State.loading}
                     className="gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1397,7 +1286,7 @@ export default function AppsflyerDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={handleNextPageTable1}
-                    disabled={currentPageTable1 === totalPagesTable1 || isCampaignPerformanceLoading}
+                    disabled={table1State.currentPage === table1State.totalPages || table1State.loading}
                     className="gap-2"
                   >
                     Next
@@ -1423,7 +1312,7 @@ export default function AppsflyerDashboard() {
               </div>
               <Badge variant="outline" className="gap-1">
                 <Filter className="h-3 w-3" />
-                {filteredDetailedData.length} Records (Page {currentPageTable2} of {totalPagesTable2})
+                {filteredDetailedData.length} Records (Page {table2State.currentPage} of {table2State.totalPages})
               </Badge>
             </div>
           </CardHeader>
@@ -1460,7 +1349,7 @@ export default function AppsflyerDashboard() {
                   </button>
                   
                   {isCampaignDropdownOpen && (
-                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-50 min-w-max">
+                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-[99999] min-w-max">
                       <div className="p-2 border-b sticky top-0 bg-background">
                         <Input
                           placeholder="Search campaigns..."
@@ -1551,7 +1440,7 @@ export default function AppsflyerDashboard() {
                   </button>
                   
                   {isSourceDropdownOpen && selectedCampaign && (
-                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-50 min-w-max">
+                    <div className="absolute top-full left-0 right-0 mt-1 border rounded-lg bg-background shadow-lg z-[99999] min-w-max">
                       <div className="p-2 border-b sticky top-0 bg-background">
                         <Input
                           placeholder="Search sources..."
@@ -1715,6 +1604,19 @@ export default function AppsflyerDashboard() {
                           {getSortIcon("campaignName", sortConfigDetail)}
                         </div>
                       </TableHead>
+                      <TableHead 
+                        className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}
+                        onClick={() => handleSortDetail("source")}
+                      >
+                        <div className="flex items-center justify-center font-semibold">
+                          Source
+                          {getSortIcon("source", sortConfigDetail)}
+                        </div>
+                      </TableHead>
                       {showDateColumn && (
                         <TableHead 
                           className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
@@ -1827,10 +1729,11 @@ export default function AppsflyerDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {isCampDetailsLoading ? (
+                    {table2State.loading ? (
                       <>
                         {[...Array(10)].map((_, i) => (
                           <TableRow key={i}>
+                            <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                             {showDateColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
                             <TableCell><Skeleton className="h-8 w-32" /></TableCell>
@@ -1858,6 +1761,13 @@ export default function AppsflyerDashboard() {
                               <div>{row.campaignName}</div>
                               <div className="text-[10px] text-muted-foreground font-normal mt-0.5">{row.bundleid || '-'}</div>
                             </div>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <span className={`font-medium ${
+                              showDateColumn && showCParamColumn ? 'text-[10px]' : 
+                              showDateColumn || showCParamColumn ? 'text-xs' : 
+                              'text-sm'
+                            }`}>{row.source || '-'}</span>
                           </TableCell>
                           {showDateColumn && (
                             <TableCell className="text-center">
@@ -1923,7 +1833,7 @@ export default function AppsflyerDashboard() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={7 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
+                        <TableCell colSpan={8 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
                           <div className="flex flex-col items-center justify-center text-center space-y-3">
                             <div className="p-3 rounded-full bg-muted">
                               <Filter className="h-6 w-6 text-muted-foreground" />
@@ -1944,17 +1854,17 @@ export default function AppsflyerDashboard() {
             </div>
 
             {/* Pagination Controls for Table 2 */}
-            {totalPagesTable2 > 0 && (
+            {table2State.totalPages > 0 && (
               <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/30 rounded-b-lg">
                 <div className="text-sm text-muted-foreground">
-                  Page <span className="font-semibold text-foreground">{currentPageTable2}</span> of <span className="font-semibold text-foreground">{totalPagesTable2}</span>
+                  Page <span className="font-semibold text-foreground">{table2State.currentPage}</span> of <span className="font-semibold text-foreground">{table2State.totalPages}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handlePreviousPageTable2}
-                    disabled={currentPageTable2 === 1 || isCampDetailsLoading}
+                    disabled={table2State.currentPage === 1 || table2State.loading}
                     className="gap-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1966,7 +1876,7 @@ export default function AppsflyerDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={handleNextPageTable2}
-                    disabled={currentPageTable2 === totalPagesTable2 || isCampDetailsLoading}
+                    disabled={table2State.currentPage === table2State.totalPages || table2State.loading}
                     className="gap-2"
                   >
                     Next

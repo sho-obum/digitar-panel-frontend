@@ -5,8 +5,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id') || '';
     const type = searchParams.get('type') || 'single';
+    const fromDate = searchParams.get('fromDate') || '';
+    const toDate = searchParams.get('toDate') || '';
 
-    const url = `https://api.digitarmedia.com/11-2025/source-list.php?id=${id}&type=${type}`;
+    const url = `https://api.digitarmedia.com/11-2025/source-list.php?id=${id}&type=${type}&fromDate=${fromDate}&toDate=${toDate}`;
 
     const response = await fetch(url, {
       method: 'GET',
