@@ -1222,7 +1222,7 @@ export default function AppsflyerDashboard() {
             <div className="rounded-lg border overflow-hidden">
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-100/20 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-blue-400 [&::-webkit-scrollbar-thumb]:to-blue-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                  <TableHeader className="sticky top-0 z-[5] bg-background shadow-sm">
                     <TableRow className="border-b-2 border-blue-500/20">
                       <TableHead 
                         className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
@@ -1766,7 +1766,7 @@ export default function AppsflyerDashboard() {
             <div className="rounded-lg border overflow-hidden">
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto relative [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-blue-100/20 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-thumb]:bg-gradient-to-b [&::-webkit-scrollbar-thumb]:from-blue-400 [&::-webkit-scrollbar-thumb]:to-blue-600 [&::-webkit-scrollbar-thumb]:rounded-full">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-background shadow-sm">
+                  <TableHeader className="sticky top-0 z-[5] bg-background shadow-sm">
                     <TableRow className="border-b-2 border-green-500/20">
                       <TableHead 
                         className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
