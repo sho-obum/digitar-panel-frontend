@@ -129,6 +129,7 @@ export default function AppsflyerDashboard() {
   const [campaignSearch, setCampaignSearch] = useState<string>("");
   const [showDateColumn, setShowDateColumn] = useState(false);
   const [showCParamColumn, setShowCParamColumn] = useState(false);
+  const [showPidColumn, setShowPidColumn] = useState(true);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
   const [sortConfigDetail, setSortConfigDetail] = useState<SortConfig>({ key: null, direction: "asc" });
   const [copiedPid, setCopiedPid] = useState<string | null>(null);
@@ -318,7 +319,8 @@ export default function AppsflyerDashboard() {
           showDate: false,
         };
         
-
+        console.log('📊 Table 1 - DATEWISE Payload (showDate: true):', datewisePayload);
+        console.log('📊 Table 1 - AGGREGATED Payload (showDate: false):', aggregatedPayload);
         
         const [datewiseResponse, aggregatedResponse] = await Promise.all([
           // Datewise data (showDate: true)
@@ -344,7 +346,8 @@ export default function AppsflyerDashboard() {
           aggregatedResponse.json(),
         ]);
         
-
+        console.log('✅ Table 1 - Datewise Response:', datewiseResult);
+        console.log('✅ Table 1 - Aggregated Response:', aggregatedResult);
         
         // Process datewise data
         const datewiseData = datewiseResult.success && Array.isArray(datewiseResult.data)
@@ -368,7 +371,12 @@ export default function AppsflyerDashboard() {
             }))
           : [];
         
-
+        console.log('📦 Table 1 - Processed Arrays:', {
+          datewiseCount: datewiseData.length,
+          aggregatedCount: aggregatedData.length,
+          datewiseSample: datewiseData[0],
+          aggregatedSample: aggregatedData[0]
+        });
         
         setTable1State(prev => ({
           ...prev,
@@ -381,7 +389,7 @@ export default function AppsflyerDashboard() {
         }));
         
       } catch (error) {
-        console.error('Table 1 Error:', error);
+        console.error('❌ Table 1 - Fetch Error:', error);
         toast.error('Failed to load campaign performance');
         setTable1State(prev => ({ 
           ...prev, 
@@ -459,7 +467,7 @@ export default function AppsflyerDashboard() {
           showDate: showDateColumn,
         };
         
-
+        console.log('🔍 Table 2 - Payload:', payload);
         
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -472,7 +480,7 @@ export default function AppsflyerDashboard() {
         }
         
         const result = await response.json();
-
+        console.log('✅ Table 2 - Response:', result);
         
         if (result.success && Array.isArray(result.data)) {
           const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
@@ -496,12 +504,12 @@ export default function AppsflyerDashboard() {
             totalRecords: result.total || 0,
           }));
         } else {
-          console.error('Table 2 Error: Invalid data format');
+          console.error('❌ Table 2 - Invalid data format:', result);
           toast.error("Invalid campaign details data format");
           setTable2State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
         }
       } catch (error) {
-        console.error('Table 2 Error:', error);
+        console.error('❌ Table 2 - Fetch Error:', error);
         toast.error("Failed to load campaign details");
         setTable2State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
       } finally {
@@ -645,7 +653,13 @@ export default function AppsflyerDashboard() {
   const sortedCampaignPerformance = useMemo(() => {
     // Use appropriate array based on checkbox state
     const dataToUse = showDateColumn ? table1State.datewiseData : table1State.aggregatedData;
-
+    console.log('🔄 Table 1 - Switching data:', {
+      showDateColumn,
+      datewiseCount: table1State.datewiseData.length,
+      aggregatedCount: table1State.aggregatedData.length,
+      usingDataCount: dataToUse.length,
+      sampleData: dataToUse.slice(0, 2)
+    });
     let filtered = dataToUse;
     
     if (debouncedCampaignSearch.trim()) {
@@ -1655,6 +1669,18 @@ export default function AppsflyerDashboard() {
                        C Parameter
                     </Label>
                   </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="showPidColumnDetail"
+                      checked={showPidColumn}
+                      onChange={(e) => setShowPidColumn(e.target.checked)}
+                      className="rounded"
+                    />
+                    <Label htmlFor="showPidColumnDetail" className="text-xs font-medium">
+                       PID
+                    </Label>
+                  </div>
                 </div>
                 <div className="flex justify-center">
                   <Tooltip>
@@ -1720,11 +1746,13 @@ export default function AppsflyerDashboard() {
                           </div>
                         </TableHead>
                       )}
-                      <TableHead className={`text-center font-semibold bg-background ${
-                        showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
-                        showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
-                        'text-sm px-3 py-2'
-                      }`}>PID</TableHead>
+                      {showPidColumn && (
+                        <TableHead className={`text-center font-semibold bg-background ${
+                          showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
+                          showDateColumn || showCParamColumn ? 'text-xs px-2 py-1' : 
+                          'text-sm px-3 py-2'
+                        }`}>PID</TableHead>
+                      )}
                       <TableHead 
                         className={`text-center cursor-pointer select-none hover:bg-muted/80 transition-colors bg-background ${
                           showDateColumn && showCParamColumn ? 'text-[10px] px-1.5 py-0.5' : 
@@ -1826,7 +1854,7 @@ export default function AppsflyerDashboard() {
                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                             {showDateColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
-                            <TableCell><Skeleton className="h-8 w-32" /></TableCell>
+                            {showPidColumn && <TableCell><Skeleton className="h-8 w-32" /></TableCell>}
                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                             {showCParamColumn && <TableCell><Skeleton className="h-8 w-24" /></TableCell>}
                             <TableCell><Skeleton className="h-8 w-24" /></TableCell>
@@ -1864,26 +1892,28 @@ export default function AppsflyerDashboard() {
                               <span className={showDateColumn && showCParamColumn ? 'text-[10px]' : showDateColumn || showCParamColumn ? 'text-xs' : 'text-sm'}>{row.date || '-'}</span>
                             </TableCell>
                           )}
-                          <TableCell>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={() => handleCopyPid(row.pid)}
-                                  className="group/pid flex items-center gap-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
-                                >
-                                  <code className="text-xs text-muted-foreground">
-                                    {row.pid}
-                                  </code>
-                                  {copiedPid === row.pid ? (
-                                    <Check className="h-3 w-3 text-green-500" />
-                                  ) : (
-                                    <Copy className="h-3 w-3 opacity-0 group-hover/pid:opacity-100 transition-opacity" />
-                                  )}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent>Click to copy PID</TooltipContent>
-                            </Tooltip>
-                          </TableCell>
+                          {showPidColumn && (
+                            <TableCell>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    onClick={() => handleCopyPid(row.pid)}
+                                    className="group/pid flex items-center gap-2 hover:bg-muted/50 px-2 py-1 rounded transition-colors"
+                                  >
+                                    <code className="text-xs text-muted-foreground">
+                                      {row.pid}
+                                    </code>
+                                    {copiedPid === row.pid ? (
+                                      <Check className="h-3 w-3 text-green-500" />
+                                    ) : (
+                                      <Copy className="h-3 w-3 opacity-0 group-hover/pid:opacity-100 transition-opacity" />
+                                    )}
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Click to copy PID</TooltipContent>
+                              </Tooltip>
+                            </TableCell>
+                          )}
                           <TableCell className="text-right">
                             <span className="font-semibold text-muted-foreground">{row.impressions ? row.impressions.toLocaleString() : '0'}</span>
                           </TableCell>
@@ -1923,7 +1953,7 @@ export default function AppsflyerDashboard() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={8 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0)} className="h-32">
+                        <TableCell colSpan={8 + (showDateColumn ? 1 : 0) + (showCParamColumn ? 1 : 0) + (showPidColumn ? 1 : 0)} className="h-32">
                           <div className="flex flex-col items-center justify-center text-center space-y-3">
                             <div className="p-3 rounded-full bg-muted">
                               <Filter className="h-6 w-6 text-muted-foreground" />
