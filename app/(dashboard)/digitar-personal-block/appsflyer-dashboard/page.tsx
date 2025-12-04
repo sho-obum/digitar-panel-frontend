@@ -143,16 +143,19 @@ export default function AppsflyerDashboard() {
   const [isCampaignDropdownOpen, setIsCampaignDropdownOpen] = useState(false);
   const [searchTrigger, setSearchTrigger] = useState(0);
   
-  // Simplified Table 1 State
+  // Table 1 State with TWO separate data arrays
   const [table1State, setTable1State] = useState({
-    data: [] as CampaignPerformanceItem[],
+    datewiseData: [] as CampaignPerformanceItem[],
+    aggregatedData: [] as CampaignPerformanceItem[],
     loading: false,
     currentPage: 1,
-    totalPages: 0,
-    totalRecords: 0,
+    datewiseTotalPages: 0,
+    aggregatedTotalPages: 0,
+    datewiseTotalRecords: 0,
+    aggregatedTotalRecords: 0,
   });
   
-  // Simplified Table 2 State
+  // Table 2 State - Simple single data array
   const [table2State, setTable2State] = useState({
     data: [] as CampDetailsItem[],
     loading: false,
@@ -290,48 +293,105 @@ export default function AppsflyerDashboard() {
     fetchCampaignList();
   }, [dateRange]);
 
-  // Fetch Table 1 (Campaign Performance)
+  // Fetch Table 1 (Campaign Performance) - Fetch BOTH datewise and aggregated
   useEffect(() => {
     const fetchTable1Data = async () => {
       setTable1State(prev => ({ ...prev, loading: true }));
+      
+      const endpoint = '/api/appsflyer-camp-details-by-date';
+      const currentPage = table1State.currentPage;
+      
       try {
-        const response = await fetch('/api/appsflyer-camp-details-by-date', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            page: table1State.currentPage,
-            limit: PAGE_SIZE,
-            fromDate: format(dateRange.from, 'yyyy-MM-dd'),
-            toDate: format(dateRange.to, 'yyyy-MM-dd'),
+        const datewisePayload = {
+          page: currentPage,
+          limit: PAGE_SIZE,
+          fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+          toDate: format(dateRange.to, 'yyyy-MM-dd'),
+          showDate: true,
+        };
+        
+        const aggregatedPayload = {
+          page: currentPage,
+          limit: PAGE_SIZE,
+          fromDate: format(dateRange.from, 'yyyy-MM-dd'),
+          toDate: format(dateRange.to, 'yyyy-MM-dd'),
+          showDate: false,
+        };
+        
+
+        
+        const [datewiseResponse, aggregatedResponse] = await Promise.all([
+          // Datewise data (showDate: true)
+          fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(datewisePayload),
           }),
-        });
+          // Aggregated data (showDate: false)
+          fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(aggregatedPayload),
+          }),
+        ]);
         
-        if (!response.ok) throw new Error('Failed to fetch data');
-        
-        const result = await response.json();
-        
-        if (result.success && Array.isArray(result.data)) {
-          const enrichedData: CampaignPerformanceItem[] = result.data.map((item: any) => ({
-            ...item,
-            campaign: item.campaigns || item.bundleid,
-            event: item.event,
-            p360installs: item.p360installs,
-            p360event: item.p360event,
-          }));
-          
-          setTable1State(prev => ({
-            ...prev,
-            data: enrichedData,
-            totalPages: result.total_pages || 0,
-            totalRecords: result.total || 0,
-          }));
-        } else {
-          toast.error('Invalid campaign performance data format');
-          setTable1State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
+        if (!datewiseResponse.ok || !aggregatedResponse.ok) {
+          throw new Error('Failed to fetch data');
         }
+        
+        const [datewiseResult, aggregatedResult] = await Promise.all([
+          datewiseResponse.json(),
+          aggregatedResponse.json(),
+        ]);
+        
+
+        
+        // Process datewise data
+        const datewiseData = datewiseResult.success && Array.isArray(datewiseResult.data)
+          ? datewiseResult.data.map((item: any) => ({
+              ...item,
+              campaign: item.campaigns || item.bundleid,
+              event: item.event,
+              p360installs: item.p360installs,
+              p360event: item.p360event,
+            }))
+          : [];
+        
+        // Process aggregated data
+        const aggregatedData = aggregatedResult.success && Array.isArray(aggregatedResult.data)
+          ? aggregatedResult.data.map((item: any) => ({
+              ...item,
+              campaign: item.campaigns || item.bundleid,
+              event: item.event,
+              p360installs: item.p360installs,
+              p360event: item.p360event,
+            }))
+          : [];
+        
+
+        
+        setTable1State(prev => ({
+          ...prev,
+          datewiseData,
+          aggregatedData,
+          datewiseTotalPages: datewiseResult.total_pages || 0,
+          aggregatedTotalPages: aggregatedResult.total_pages || 0,
+          datewiseTotalRecords: datewiseResult.total || 0,
+          aggregatedTotalRecords: aggregatedResult.total || 0,
+        }));
+        
       } catch (error) {
+        console.error('Table 1 Error:', error);
         toast.error('Failed to load campaign performance');
-        setTable1State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
+        setTable1State(prev => ({ 
+          ...prev, 
+          datewiseData: [], 
+          aggregatedData: [],
+          datewiseTotalPages: 0,
+          aggregatedTotalPages: 0,
+          datewiseTotalRecords: 0,
+          aggregatedTotalRecords: 0,
+        }));
       } finally {
         setTable1State(prev => ({ ...prev, loading: false }));
       }
@@ -376,24 +436,43 @@ export default function AppsflyerDashboard() {
     fetchSourceList();
   }, [selectedCampaign, selectedBundleId, dateRange]);
 
-  // Unified Table 2 fetch (Campaign Details by Source)
+  // Table 2 fetch (Campaign Details by Source) - Single fetch based on showDateColumn
   useEffect(() => {
     if (searchTrigger === 0) return;
 
     const fetchTable2Data = async () => {
       setTable2State(prev => ({ ...prev, loading: true }));
+      
+      const bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
+      const source = selectedSources.length > 0 ? selectedSources.join(",") : "all";
+      const endpoint = '/api/appsflyer-camp-details';
+      const currentPage = table2State.currentPage;
+      
       try {
-        const bundleId = selectedCampaign === "all" ? "all" : selectedBundleId;
-        const source = selectedSources.length > 0 ? selectedSources.join(",") : "all";
-
-        const result = await fetchAppsflyerData({
+        const payload = {
           bundle_id: bundleId,
           source: source,
-          page: table2State.currentPage,
+          page: currentPage,
           limit: PAGE_SIZE,
           fromDate: format(dateRange.from, 'yyyy-MM-dd'),
           toDate: format(dateRange.to, 'yyyy-MM-dd'),
+          showDate: showDateColumn,
+        };
+        
+
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
         });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch data');
+        }
+        
+        const result = await response.json();
+
         
         if (result.success && Array.isArray(result.data)) {
           const enrichedData: CampDetailsItem[] = result.data.map((item: any) => ({
@@ -417,10 +496,12 @@ export default function AppsflyerDashboard() {
             totalRecords: result.total || 0,
           }));
         } else {
+          console.error('Table 2 Error: Invalid data format');
           toast.error("Invalid campaign details data format");
           setTable2State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
         }
       } catch (error) {
+        console.error('Table 2 Error:', error);
         toast.error("Failed to load campaign details");
         setTable2State(prev => ({ ...prev, data: [], totalPages: 0, totalRecords: 0 }));
       } finally {
@@ -429,7 +510,7 @@ export default function AppsflyerDashboard() {
     };
 
     fetchTable2Data();
-  }, [searchTrigger, table2State.currentPage, dateRange, selectedCampaign, selectedBundleId, selectedSources]);
+  }, [searchTrigger, table2State.currentPage, dateRange, selectedCampaign, selectedBundleId, selectedSources, showDateColumn]);
 
   const datePresets = [
     {
@@ -517,13 +598,14 @@ export default function AppsflyerDashboard() {
     setIsPopoverOpen(false);
   };
 
-  // Calculate summary stats from campaign performance data
+  // Calculate summary stats from campaign performance data (use aggregated data for totals)
   const summaryStats = useMemo(() => {
-    const totalClicks = table1State.data.reduce((sum, item) => sum + parseInt(item.clicks), 0);
-    const totalInstalls = table1State.data.reduce((sum, item) => sum + parseInt(item.installs), 0);
-    const totalEvents = table1State.data.reduce((sum, item) => sum + parseInt(item.event), 0);
-    const totalP360Installs = table1State.data.reduce((sum, item) => sum + parseInt(item.p360installs), 0);
-    const totalP360Events = table1State.data.reduce((sum, item) => sum + parseInt(item.p360event), 0);
+    const dataToUse = table1State.aggregatedData;
+    const totalClicks = dataToUse.reduce((sum, item) => sum + parseInt(item.clicks), 0);
+    const totalInstalls = dataToUse.reduce((sum, item) => sum + parseInt(item.installs), 0);
+    const totalEvents = dataToUse.reduce((sum, item) => sum + parseInt(item.event), 0);
+    const totalP360Installs = dataToUse.reduce((sum, item) => sum + parseInt(item.p360installs), 0);
+    const totalP360Events = dataToUse.reduce((sum, item) => sum + parseInt(item.p360event), 0);
     
     const conversionRate = totalClicks > 0 ? (totalInstalls / totalClicks) * 100 : 0;
     const eventRate = totalInstalls > 0 ? (totalEvents / totalInstalls) * 100 : 0;
@@ -539,7 +621,7 @@ export default function AppsflyerDashboard() {
       eventRate,
       p360EventRate,
     };
-  }, [table1State.data]);
+  }, [table1State.aggregatedData]);
 
   // Sorting function for main table
   const handleSort = (key: string) => {
@@ -559,9 +641,12 @@ export default function AppsflyerDashboard() {
     setSortConfigDetail({ key, direction });
   };
 
-  // Sort and filter campaign performance data
+  // Sort and filter campaign performance data - Switch based on showDateColumn
   const sortedCampaignPerformance = useMemo(() => {
-    let filtered = table1State.data;
+    // Use appropriate array based on checkbox state
+    const dataToUse = showDateColumn ? table1State.datewiseData : table1State.aggregatedData;
+
+    let filtered = dataToUse;
     
     if (debouncedCampaignSearch.trim()) {
       filtered = filtered.filter(row => 
@@ -594,7 +679,7 @@ export default function AppsflyerDashboard() {
       
       return 0;
     });
-  }, [sortConfig, table1State.data, debouncedCampaignSearch]);
+  }, [sortConfig, table1State.datewiseData, table1State.aggregatedData, showDateColumn, debouncedCampaignSearch]);
 
   // Filter detailed data based on selected campaign and selected sources
   const filteredDetailedData = useMemo(() => {
@@ -642,6 +727,7 @@ export default function AppsflyerDashboard() {
   }, [table2State.data, sortConfigDetail, campaignList]);
 
   const handleExportData = () => {
+    const dataToExport = showDateColumn ? table1State.datewiseData : table1State.aggregatedData;
     const headers = ["Campaign Name", "Bundle ID"];
     if (showDateColumn) headers.push("Date");
     headers.push("Clicks");
@@ -650,7 +736,7 @@ export default function AppsflyerDashboard() {
     
     const csv = [
       headers,
-      ...table1State.data.map(row => {
+      ...dataToExport.map(row => {
         const data = [row.campaign, row.bundleid];
         if (showDateColumn) data.push(row.date || '');
         data.push(row.clicks);
@@ -734,7 +820,8 @@ export default function AppsflyerDashboard() {
   };
 
   const handleNextPageTable1 = () => {
-    if (table1State.currentPage < table1State.totalPages) {
+    const maxPages = showDateColumn ? table1State.datewiseTotalPages : table1State.aggregatedTotalPages;
+    if (table1State.currentPage < maxPages) {
       setTable1State(prev => ({ ...prev, currentPage: prev.currentPage + 1 }));
     }
   };
@@ -963,7 +1050,10 @@ export default function AppsflyerDashboard() {
               </div>
               <Badge variant="outline" className="gap-1">
                 <BarChart3 className="h-3 w-3" />
-                {table1State.data.length} Records (Page {table1State.currentPage} of {table1State.totalPages})
+                {showDateColumn 
+                  ? ` ${table1State.datewiseData.length} Records (Page ${table1State.currentPage} of ${table1State.datewiseTotalPages})` 
+                  : ` ${table1State.aggregatedData.length} Records (Page ${table1State.currentPage} of ${table1State.aggregatedTotalPages})`
+                }
               </Badge>
             </div>
           </CardHeader>
@@ -1184,9 +1274,9 @@ export default function AppsflyerDashboard() {
                         ))}
                       </>
                     ) : sortedCampaignPerformance.length > 0 ? (
-                      sortedCampaignPerformance.map((row) => (
+                      sortedCampaignPerformance.map((row, index) => (
                         <TableRow 
-                          key={row.bundleid} 
+                          key={`${row.bundleid}-${row.date || ''}-${index}`}
                           className={`hover:bg-muted/50 transition-colors group ${
                             showDateColumn && showCParamColumn ? 'text-[10px]' : 
                             showDateColumn || showCParamColumn ? 'text-xs' : 
@@ -1264,10 +1354,10 @@ export default function AppsflyerDashboard() {
             </div>
 
             {/* Pagination Controls for Table 1 */}
-            {table1State.totalPages > 0 && (
+            {(showDateColumn ? table1State.datewiseTotalPages : table1State.aggregatedTotalPages) > 0 && (
               <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/30 rounded-b-lg">
                 <div className="text-sm text-muted-foreground">
-                  Page <span className="font-semibold text-foreground">{table1State.currentPage}</span> of <span className="font-semibold text-foreground">{table1State.totalPages}</span>
+                  Page <span className="font-semibold text-foreground">{table1State.currentPage}</span> of <span className="font-semibold text-foreground">{showDateColumn ? table1State.datewiseTotalPages : table1State.aggregatedTotalPages}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -1286,7 +1376,7 @@ export default function AppsflyerDashboard() {
                     variant="outline"
                     size="sm"
                     onClick={handleNextPageTable1}
-                    disabled={table1State.currentPage === table1State.totalPages || table1State.loading}
+                    disabled={table1State.currentPage === (showDateColumn ? table1State.datewiseTotalPages : table1State.aggregatedTotalPages) || table1State.loading}
                     className="gap-2"
                   >
                     Next

@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { page = 1, limit = 10, fromDate, toDate } = body;
+    const { page = 1, limit = 10, fromDate, toDate, showDate } = body;
+
+    console.log('🔥 Route received showDate:', showDate);
 
     const response = await fetch('https://api.digitarmedia.com/11-2025/camp-details-by-date.php', {
       method: 'POST',
@@ -16,6 +18,7 @@ export async function POST(request: Request) {
         limit,
         fromDate,
         toDate,
+        showDate,
       }),
     });
 
