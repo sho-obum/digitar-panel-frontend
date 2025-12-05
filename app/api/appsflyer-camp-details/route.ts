@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { source, bundle_id, page = 1, limit = 10, fromDate, toDate, showDate } = body;
+    const { source, bundle_id, page = 1, limit = 10, fromDate, toDate, showDate, showPidColumn } = body;
 
     if (!source || !bundle_id) {
       return NextResponse.json(
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
         fromDate,
         toDate,
         showDate,
+        showPidColumn
       }),
     });
 

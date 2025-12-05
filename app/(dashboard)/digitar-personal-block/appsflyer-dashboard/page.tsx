@@ -134,7 +134,7 @@ export default function AppsflyerDashboard() {
   const [showCParamColumnTable1, setShowCParamColumnTable1] = useState(false);
   const [showDateColumnTable2, setShowDateColumnTable2] = useState(false);
   const [showCParamColumnTable2, setShowCParamColumnTable2] = useState(false);
-  const [showPidColumn, setShowPidColumn] = useState(true);
+  const [showPidColumn, setShowPidColumn] = useState(false);
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: null, direction: "asc" });
   const [sortConfigDetail, setSortConfigDetail] = useState<SortConfig>({ key: null, direction: "asc" });
   const [copiedPid, setCopiedPid] = useState<string | null>(null);
@@ -503,6 +503,7 @@ export default function AppsflyerDashboard() {
           fromDate: format(dateRange.from, 'yyyy-MM-dd'),
           toDate: format(dateRange.to, 'yyyy-MM-dd'),
           showDate: showDateColumnTable2,
+          showPidColumn:showPidColumn
         };
         
         console.log('🔍 Table 2 - Payload:', payload);
@@ -1650,7 +1651,7 @@ export default function AppsflyerDashboard() {
                             {filteredCampaignList.length > 0 ? (
                               filteredCampaignList.map((item) => (
                                 <div
-                                  key={item.id}
+                                  key={item.id + item.campaign}
                                   onClick={() => {
                                     handleCampaignChange(item.campaign);
                                     setIsCampaignDropdownOpen(false);
