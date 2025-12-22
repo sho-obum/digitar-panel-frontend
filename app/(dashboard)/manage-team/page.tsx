@@ -77,8 +77,9 @@ interface TeamMember {
 interface Role {
   id: number;
   name: string;
-  key: string;
+  key?: string;
 }
+const [roles, setRoles] = useState<Role[]>([]);
 
 // Mock data for team growth chart (last 6 months)
 const TEAM_GROWTH_DATA = [
@@ -237,7 +238,6 @@ export default function AdminTeamManagementPage() {
     role_id: undefined,
   });
 
-  const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
 
   const isMainAdmin = (role_id: number | null) =>
