@@ -19,13 +19,7 @@ export async function POST(req: Request) {
  const session = await getServerSession(authOptions);
  const user_id = session?.user?.id;
  const userIp = getRealIp(req);
- 
- console.log("🔍 [POST /api/mail-config/add] Request started", {
-   user_id,
-   ip: userIp,
-   timestamp: new Date().toISOString(),
- });
- 
+
  log.info("POST /api/mail-config/add: Requesting", { user_id, ip: userIp, time: new Date().toISOString() });
  
  if (!user_id) {
@@ -39,16 +33,6 @@ export async function POST(req: Request) {
 
   try {
     const body = (await req.json()) as AddConfigBody;
-    
-    console.log("📦 [POST /api/mail-config/add] Received payload:", {
-      config_name: body.config_name,
-      provider: body.provider,
-      smtp_host: body.smtp_host,
-      smtp_port: body.smtp_port,
-      smtp_user: body.smtp_user,
-      smtp_pass: body.smtp_pass ? "***REDACTED***" : "NOT_PROVIDED",
-      from_email: body.from_email,
-    });
 
     const {
       config_name,
@@ -60,20 +44,9 @@ export async function POST(req: Request) {
       from_email,
     } = body;
 
-    console.log("✅ [POST /api/mail-config/add] Extracted values:", {
-      config_name,
-      provider,
-      smtp_host,
-      smtp_port,
-      smtp_user,
-      smtp_pass: smtp_pass ? "***REDACTED***" : "NOT_PROVIDED",
-      from_email,
-      user_id,
-    });
-
     // Required fields validation
     if (!user_id || !config_name || !from_email) {
-      console.error("❌ [POST /api/mail-config/add] Missing required fields:", {
+      log.error("❌ [POST /api/mail-config/add] Missing required fields:", {
         user_id: !!user_id,
         config_name: !!config_name,
         from_email: !!from_email,
@@ -83,8 +56,6 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
-    console.log("🔎 [POST /api/mail-config/add] Checking for duplicates...");
     
     const [rows]: any = await pool.query(
       `SELECT id FROM mail_configs 
@@ -92,13 +63,7 @@ export async function POST(req: Request) {
       [user_id, config_name, from_email]
     );
 
-    console.log("🔍 [POST /api/mail-config/add] Duplicate check result:", {
-      duplicateFound: rows.length > 0,
-      rowsCount: rows.length,
-    });
-
     if (rows.length > 0) {
-      console.warn("⚠️ [POST /api/mail-config/add] Duplicate config found");
       return NextResponse.json(
         {
           success: false,
@@ -108,8 +73,6 @@ export async function POST(req: Request) {
         { status: 409 }
       );
     }
-
-    console.log("💾 [POST /api/mail-config/add] Inserting new config into database...");
     
     const [result]: any = await pool.query(
       `INSERT INTO mail_configs 
@@ -127,11 +90,6 @@ export async function POST(req: Request) {
       ]
     );
 
-    console.log("✨ [POST /api/mail-config/add] Config inserted successfully:", {
-      insertedId: result.insertId,
-      affectedRows: result.affectedRows,
-    });
-
     return NextResponse.json({
       success: true,
       msg: "Config added successfully",
@@ -139,13 +97,6 @@ export async function POST(req: Request) {
       payload: body,
     });
   } catch (err: any) {
-    console.error("❌ [POST /api/mail-config/add] Error occurred:", {
-      error: err.message,
-      stack: err.stack,
-      user_id,
-      ip: userIp,
-      timestamp: new Date().toISOString(),
-    });
     
     log.error("POST /api/mail-config/add: Error adding config", { 
       error: err.message, 
@@ -161,22 +112,3 @@ export async function POST(req: Request) {
     );
   }
 }
-
-
-// const res = await fetch("/api/mail-config/add", {
-//   method: "POST",
-//   headers: { "Content-Type": "application/json" },
-//   body: JSON.stringify({
-//     config_name: "Primary Gmail",
-//     provider: "smtp",
-//     smtp_host: "smtp.gmail.com",
-//     smtp_port: 465,
-//     smtp_user: "example@gmail.com",
-//     smtp_pass: "test123",
-//     from_email: "example@gmail.com",
-//   }),
-// });
-
-// const json = await res.json();
-// console.log(json);
-

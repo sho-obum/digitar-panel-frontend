@@ -1,164 +1,115 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
+import { useSession } from "next-auth/react";
 import {
   BookOpen,
   Bot,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
   PieChart,
   Settings2,
   SquareTerminal,
   Users,
-} from "lucide-react"
+} from "lucide-react";
 
-import { NavMain } from "@/components/nav-main"
-import { NavAdmin } from "@/components/nav-admin"
-import { NavProjects } from "@/components/nav-projects"
-import { NavPersonalBlock } from "@/components/nav-personal-block"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavMain } from "@/components/nav-main";
+import { NavAdmin } from "@/components/nav-admin";
+import { NavPersonalBlock } from "@/components/nav-personal-block";
+import { TeamSwitcher } from "@/components/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
-// This is sample data.
-const data = {
-  user: {
-    name: "Username",
-    email: "user@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
+/* ------------------------------------------------------------------ */
+/* ICON MAP (FOR DYNAMIC SIDEBAR ONLY)                                 */
+/* ------------------------------------------------------------------ */
+const ICON_MAP: Record<string, any> = {
+  dashboard: PieChart,
+  campaigns: SquareTerminal,
+  templates: BookOpen,
+  logs: Bot,
+  settings: Settings2,
+  users: Users,
+};
+
+const getIconFromTitle = (title?: string) => {
+  if (!title) return PieChart;
+  const key = title.toLowerCase().replace(/\s+/g, "");
+  return ICON_MAP[key] ?? PieChart;
+};
+
+/* ------------------------------------------------------------------ */
+/* STATIC SIDEBAR CONFIG (IMMUTABLE)                                   */
+/* ------------------------------------------------------------------ */
+const STATIC_SIDEBAR = {
   teams: [
     {
       name: "Digitar Media",
       logo: "https://panel.digitarmedia.com/admin/uploads/d-logo1747116449.png",
-      logoLight: "https://panel.digitarmedia.com/admin/uploads/d-logo1747116449.png",
-      logoDark: "https://panel.digitarmedia.com/admin/uploads/digitarWhite1759991560.png",
+      logoLight:
+        "https://panel.digitarmedia.com/admin/uploads/d-logo1747116449.png",
+      logoDark:
+        "https://panel.digitarmedia.com/admin/uploads/digitarWhite1759991560.png",
       plan: "Enterprise Plan",
     },
   ],
+
   navMain: [
     {
       title: "Dashboard",
       url: "/",
       icon: PieChart,
-      isActive: true,
     },
     {
       title: "Campaigns",
       url: "#",
       icon: SquareTerminal,
-      isActive: true,
       items: [
-        {
-          title: "Create Campaign",
-          url: "/campaign/create-campaign",
-        },
-        {
-          title: "Manage Campaigns",
-          url: "/campaign/manage-campaigns",
-        }
+        { title: "Create Campaign", url: "/campaign/create-campaign" },
+        { title: "Manage Campaigns", url: "/campaign/manage-campaigns" },
       ],
     },
-     {
+    {
       title: "Templates",
       url: "#",
       icon: BookOpen,
       items: [
-        {
-          title: "Configure Template",
-          url: "/template/config-template",
-        },
-        {
-          title: "Email Templates",
-          url: "/template/email-template",
-        },
-        {
-          title: "Manage Categories",
-          url: "/template/manage-categories",
-        },
-      
+        { title: "Configure Template", url: "/template/config-template" },
+        { title: "Email Templates", url: "/template/email-template" },
+        { title: "Manage Categories", url: "/template/manage-categories" },
       ],
     },
     {
       title: "Logs",
       url: "#",
       icon: Bot,
-      items: [
-        {
-          title: "Email Logs",
-          url: "/logs/email-logs",
-        },
-        {
-          title: "Sub Item 2" ,
-          url: "#",
-        },
-        {
-          title: "Sub Item 3",
-          url: "#",
-        },
-      ],
+      items: [{ title: "Email Logs", url: "/logs/email-logs" }],
     },
-   
     {
       title: "Settings",
       url: "#",
       icon: Settings2,
       items: [
-        {
-          title: "Email Configuration",
-          url: "/settings/email-configuration",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
+        { title: "Email Configuration", url: "/settings/email-configuration" },
       ],
     },
   ],
+
   adminItems: [
     {
-      name: "Admin",
+      name: "Management",
       url: "#",
       icon: Users,
       items: [
-        {
-          title: "Teams",
-          url: "/admin-teammanagement",
-        },
-        {
-          title: "Roles",
-          url: "/admin-roleaccess",
-        },
-      ],
-    },
-     {
-      name: "Settings",
-      url: "#",
-      icon: Settings2,
-      items: [
-        {
-          title: "Email Configuration",
-          url: "/settings/email-configuration",
-        },
-        
+        { title: "Manage Team", url: "/manage-team" },
+        { title: "Manage Roles", url: "/manage-roles" },
       ],
     },
   ],
-  
+
   personalBlock: [
     {
       name: "Appsflyer Dashboard",
@@ -166,23 +117,82 @@ const data = {
       icon: PieChart,
     },
   ],
-}
+};
 
-export default function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+/* ------------------------------------------------------------------ */
+/* SIDEBAR COMPONENT                                                   */
+/* ------------------------------------------------------------------ */
+export default function AppSidebar(
+  props: React.ComponentProps<typeof Sidebar>
+) {
+  const { data: session, status } = useSession();
+
+  const [dynamicItems, setDynamicItems] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const isMainAdmin = session?.user?.role === "main-admin";
+  const isDigiTar =
+    session?.user?.team_id === "11fe5f23-d434-11f0-9740-06b6cc65b525";
+
+  React.useEffect(() => {
+    if (status !== "authenticated") return;
+
+    if (isMainAdmin) {
+      setLoading(false);
+      return;
+    }
+
+    fetch("/api/navigation")
+      .then((res) => res.json())
+      .then((data) => {
+        const normalized = data.map((item: any) => ({
+          ...item,
+          icon: getIconFromTitle(item.title),
+          items: item.items,
+        }));
+        setDynamicItems(normalized);
+      })
+      .finally(() => setLoading(false));
+  }, [status, isMainAdmin]);
+
+  /* -------------------------------------------------------------- */
+  /* Avoid flicker                                                  */
+  /* -------------------------------------------------------------- */
+  if (status === "loading" || loading) {
+    return null;
+  }
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={STATIC_SIDEBAR.teams} />
       </SidebarHeader>
+
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavAdmin items={data.adminItems} />
-        <NavPersonalBlock items={data.personalBlock} />
+        {isMainAdmin ? (
+          <>
+            <NavMain items={STATIC_SIDEBAR.navMain} />
+            <NavAdmin items={STATIC_SIDEBAR.adminItems} />
+
+            {/* Personal block only for DigiTar main-admin */}
+            {isDigiTar && STATIC_SIDEBAR.personalBlock.length > 0 && (
+              <NavPersonalBlock items={STATIC_SIDEBAR.personalBlock} />
+            )}
+          </>
+        ) : (
+          <>
+            <NavMain items={dynamicItems} />
+
+            {/* Personal block only for DigiTar non-admin */}
+            {isDigiTar && STATIC_SIDEBAR.personalBlock.length > 0 && (
+              <NavPersonalBlock items={STATIC_SIDEBAR.personalBlock} />
+            )}
+          </>
+        )}
       </SidebarContent>
-      <SidebarFooter>
-        {/* Profile moved to header - footer now empty */}
-      </SidebarFooter>
+
+      <SidebarFooter />
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }

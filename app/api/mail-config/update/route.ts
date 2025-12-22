@@ -169,18 +169,3 @@ export async function PUT(req: Request) {
     );
   }
 }
-
-
-// await fetch("/api/mail-config/update", {
-//   method: "PUT",
-//   headers: { "Content-Type": "application/json" },
-//   body: JSON.stringify({
-//     id: 5,
-//     config_name: "Updated SMTP",
-//     smtp_host: "smtp.zoho.com",
-//     smtp_port: 465,
-//     smtp_user: "new@domain.com",
-//     smtp_pass: "newpass123",
-//     from_email: "new@domain.com"
-//   })
-// });

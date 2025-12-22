@@ -15,19 +15,19 @@ function generateAccessToken(user: any) {
       email: user.email,
       role: user.role,
       fullname: user.fullname,
+      team_id: user.team_id
     },
     JWT_SECRET,
     { expiresIn: "15m" }
   );
 }
 
-// 🔹 Log Authentication Events
 async function logAuthEvent({ userId, email, status, message, req }: any) {
   try {
     const ip = req?.headers?.["x-forwarded-for"] || req?.socket?.remoteAddress || null;
     const userAgent = req?.headers?.["user-agent"] || null;
     await pool.query(
-      "INSERT INTO login_logs (user_id, email, status, message, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO login_logs (user_id, email, status, message, ip_address, user_agent) VALUES (UUID_TO_BIN(?), ?, ?, ?, ?, ?)",
       [userId || null, email || null, status, message || null, ip, userAgent]
     );
   } catch (err) {
@@ -62,7 +62,7 @@ export const authOptions: AuthOptions = {
           }
 
           const [rows]: any = await pool.query(
-            "SELECT u.*, r.name as role FROM users u JOIN roles r ON r.id= u.role_id WHERE email = ? LIMIT 1",
+            "SELECT BIN_TO_UUID(u.id) as id, fullname, email, r.name as role, password_hash,BIN_TO_UUID(u.team_id) as team_id FROM users u JOIN roles r ON r.id= u.role_id WHERE email = ? AND status='active' LIMIT 1",
             [credentials.email]
           );
           const user = rows?.[0];
@@ -70,19 +70,18 @@ export const authOptions: AuthOptions = {
             await logAuthEvent({
               email: credentials.email,
               status: "failed",
-              message: "User not found",
+              message: "Invalid Email Or password",
               req,
             });
             return null;
           }
-
           const isValid = await bcrypt.compare(credentials.password, user.password_hash);
           if (!isValid) {
             await logAuthEvent({
               userId: user.id,
               email: user.email,
               status: "failed",
-              message: "Invalid password",
+              message: "Invalid Email Or password",
               req,
             });
             return null;
@@ -101,6 +100,7 @@ export const authOptions: AuthOptions = {
             email: user.email,
             role: user.role,
             fullname: user.fullname,
+            team_id:user.team_id
           };
         } catch (error) {
           console.error("❌ Authorize error:", error);
@@ -122,7 +122,7 @@ export const authOptions: AuthOptions = {
       if (!token) return "";
       const cleanToken = { ...token };
       delete (cleanToken as any).exp; // 🩵 remove existing exp before signing
-      return jwt.sign(cleanToken, JWT_SECRET, { expiresIn: "30d" });
+      return jwt.sign(cleanToken, JWT_SECRET, { expiresIn: "10d" });
     },
     async decode({ token }): Promise<JWT | null> {
       if (!token) return null;
@@ -139,10 +139,11 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       // Initial login
       if (user) {
-        token.id = user.id;
+        token.id = String(user.id);
         token.email = user.email;
         token.role = user.role;
         token.fullname = user.fullname;
+        token.team_id = String(user.team_id),
         token.accessToken = generateAccessToken(user);
         token.accessTokenExpires = Date.now() + 15 * 60 * 1000;
         return token;
@@ -153,7 +154,7 @@ export const authOptions: AuthOptions = {
 
       // Refresh access token
       try {
-        const [rows]: any = await pool.query("SELECT u.*, r.name as role FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = ?", [token.id]);
+        const [rows]: any = await pool.query("SELECT BIN_TO_UUID(u.id) as id, fullname, email, r.name as role, password_hash,BIN_TO_UUID(u.team_id) as team_id FROM users u JOIN roles r ON r.id = u.role_id WHERE u.id = UUID_TO_BIN(?) AND status='active'", [token.id]);
         const userFromDB = rows?.[0];
         if (!userFromDB) throw new Error("User not found during refresh");
 
@@ -186,6 +187,7 @@ export const authOptions: AuthOptions = {
         email: token.email,
         role: token.role,
         fullname: token.fullname,
+        team_id:token.team_id
       };
       session.accessToken = token.accessToken;
       session.error = token.error;
@@ -207,7 +209,7 @@ export const authOptions: AuthOptions = {
         httpOnly: true,
         sameSite: "strict",
         path: "/",
-        secure: process.env.NODE_ENV === "production" ? true : false, // ✅ ensure false in localhost
+        secure: process.env.NODE_ENV === "production" ? true : false,
       },
     },
   },

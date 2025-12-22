@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Users,
   UserPlus,
@@ -15,7 +14,15 @@ import {
   UserX,
   UserCog,
 } from "lucide-react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -54,129 +61,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
-// Types
 interface TeamMember {
   id: string;
   fullName: string;
   email: string;
   status: "active" | "inactive";
-  role: "manager" | "associate";
+  role_id: number | null;
+  role: string;
   avatar: string;
   joinedDate: string;
 }
 
-// Mock Data (Indian names)
-const INITIAL_TEAM_MEMBERS: TeamMember[] = [
-  {
-    id: "1",
-    fullName: "Arjun Mehta",
-    email: "arjun.mehta@company.com",
-    status: "active",
-    role: "manager",
-    avatar: "AM",
-    joinedDate: "2024-01-15",
-  },
-  {
-    id: "2",
-    fullName: "Rohan Iyer",
-    email: "rohan.iyer@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "RI",
-    joinedDate: "2024-03-22",
-  },
-  {
-    id: "3",
-    fullName: "Neha Gupta",
-    email: "neha.gupta@company.com",
-    status: "inactive",
-    role: "associate",
-    avatar: "NG",
-    joinedDate: "2024-06-10",
-  },
-  {
-    id: "4",
-    fullName: "Vikram Kapoor",
-    email: "vikram.kapoor@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "VK",
-    joinedDate: "2024-07-05",
-  },
-  {
-    id: "5",
-    fullName: "Ananya Singh",
-    email: "ananya.singh@company.com",
-    status: "active",
-    role: "manager",
-    avatar: "AS",
-    joinedDate: "2024-02-18",
-  },
-  {
-    id: "6",
-    fullName: "Karthik Rao",
-    email: "karthik.rao@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "KR",
-    joinedDate: "2024-08-12",
-  },
-  {
-    id: "7",
-    fullName: "Pooja Nair",
-    email: "pooja.nair@company.com",
-    status: "inactive",
-    role: "associate",
-    avatar: "PN",
-    joinedDate: "2024-04-30",
-  },
-  {
-    id: "8",
-    fullName: "Sameer Patel",
-    email: "sameer.patel@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "SP",
-    joinedDate: "2024-09-08",
-  },
-  {
-    id: "9",
-    fullName: "Sanya Kapoor",
-    email: "sanya.kapoor@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "SK",
-    joinedDate: "2024-05-20",
-  },
-  {
-    id: "10",
-    fullName: "Amit Desai",
-    email: "amit.desai@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "AD",
-    joinedDate: "2024-10-15",
-  },
-  {
-    id: "11",
-    fullName: "Shruti Rao",
-    email: "shruti.rao@company.com",
-    status: "inactive",
-    role: "associate",
-    avatar: "SR",
-    joinedDate: "2024-03-10",
-  },
-  {
-    id: "12",
-    fullName: "Dev Malhotra",
-    email: "dev.malhotra@company.com",
-    status: "active",
-    role: "associate",
-    avatar: "DM",
-    joinedDate: "2024-11-01",
-  },
-];
+interface Role {
+  id: number;
+  name: string;
+  key: string;
+}
 
 // Mock data for team growth chart (last 6 months)
 const TEAM_GROWTH_DATA = [
@@ -299,8 +201,12 @@ const getActivityDisplay = (activity: Activity) => {
 };
 
 export default function AdminTeamManagementPage() {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>(INITIAL_TEAM_MEMBERS);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [membersError, setMembersError] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
     member: TeamMember | null;
@@ -318,79 +224,276 @@ export default function AdminTeamManagementPage() {
   const [newMember, setNewMember] = useState({
     fullName: "",
     email: "",
-    role: "associate" as "manager" | "associate",
+    role_id: undefined as number | undefined,
   });
 
-  const [editMember, setEditMember] = useState({
+  const [editMember, setEditMember] = useState<{
+    fullName: string;
+    email: string;
+    role_id?: number;
+  }>({
     fullName: "",
     email: "",
-    role: "associate" as "manager" | "associate",
+    role_id: undefined,
   });
+
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+
+  const isMainAdmin = (role_id: number | null) =>
+    roles.find((r) => r.id === role_id)?.key === "main-admin";
+
+  const getRoleName = (role_id: number | null) =>
+    roles.find((r) => r.id === role_id)?.name ?? "System Admin";
 
   const totalMembers = teamMembers.length;
   const activeMembers = teamMembers.filter((m) => m.status === "active").length;
-  const managers = teamMembers.filter((m) => m.role === "manager").length;
+  const managers = teamMembers.filter(
+    (m) => getRoleName(m.role_id) === "main-admin"
+  ).length;
 
-  const handleAddMember = () => {
-    const member: TeamMember = {
-      id: Date.now().toString(),
-      fullName: newMember.fullName,
-      email: newMember.email,
-      status: "active",
-      role: newMember.role,
-      avatar: newMember.fullName
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2),
-      joinedDate: new Date().toISOString().split("T")[0],
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchInitialData = async () => {
+      setMembersLoading(true);
+      setRolesLoading(true);
+      setMembersError(null);
+
+      try {
+        const [membersRes, rolesRes] = await Promise.all([
+          fetch("/api/manage-team/members", {
+            method: "GET",
+            cache: "no-store",
+            signal: controller.signal,
+          }),
+          fetch("/api/roles/create", {
+            method: "GET",
+            signal: controller.signal,
+          }),
+        ]);
+
+        if (!membersRes.ok) {
+          throw new Error("Failed to fetch team members");
+        }
+
+        if (!rolesRes.ok) {
+          throw new Error("Failed to fetch roles");
+        }
+
+        const membersJson = await membersRes.json();
+        const rolesJson = await rolesRes.json();
+
+        if (!membersJson.success) {
+          throw new Error("Members API error");
+        }
+
+        const normalizedMembers: TeamMember[] = membersJson.data.map(
+          (m: any) => ({
+            id: m.id,
+            fullName: m.full_name,
+            email: m.email,
+            status: m.status,
+            role_id: m.role_id,
+            role: getRoleName(m.role_id),
+            avatar: m.full_name
+              .split(" ")
+              .map((n: string) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2),
+            joinedDate: m.joined_date.split("T")[0],
+          })
+        );
+
+        setTeamMembers(normalizedMembers);
+
+        const normalizedRoles: Role[] = rolesJson.data.map((role: any) => ({
+          id: role.id,
+          name: role.name,
+          key: role["unique-key"],
+        }));
+
+        setRoles(normalizedRoles);
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error(err);
+          setMembersError("Unable to load team data");
+        }
+      } finally {
+        setMembersLoading(false);
+        setRolesLoading(false);
+      }
     };
-    setTeamMembers([...teamMembers, member]);
-    setNewMember({ fullName: "", email: "", role: "associate" });
-    setIsAddDialogOpen(false);
+
+    fetchInitialData();
+  }, []);
+
+  const handleAddMember = async () => {
+    if (!newMember.fullName || !newMember.email || !newMember.role_id) return;
+
+    setSaving(true);
+
+    try {
+      const res = await fetch("/api/manage-team/users/add", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          full_name: newMember.fullName,
+          email: newMember.email,
+          role_id: newMember.role_id,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to add member");
+      }
+
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message || "API error");
+      }
+
+      const m = json.data;
+
+      // ✅ Normalize API response to TeamMember
+      const member: TeamMember = {
+        id: m.id,
+        fullName: m.full_name,
+        email: m.email,
+        status: m.status,
+        role_id: m.role_id,
+        role: getRoleName(m.role_id),
+        avatar: m.full_name
+          .split(" ")
+          .map((n: string) => n[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2),
+        joinedDate: m.joined_date.split("T")[0],
+      };
+
+      setTeamMembers((prev) => [...prev, member]);
+      setNewMember({ fullName: "", email: "", role_id: undefined });
+      setIsAddDialogOpen(false);
+
+      toast.success("Team member added successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add member");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleStatusToggle = (member: TeamMember) => {
+    if (isMainAdmin(member.role_id)) return;
     const newStatus = member.status === "active" ? "inactive" : "active";
     setStatusChangeDialog({ open: true, member, newStatus });
   };
 
-  const confirmStatusChange = () => {
-    if (statusChangeDialog.member) {
-      setTeamMembers(
-        teamMembers.map((m) =>
-          m.id === statusChangeDialog.member!.id
-            ? { ...m, status: statusChangeDialog.newStatus }
-            : m
-        )
+  const confirmStatusChange = async () => {
+    if (!statusChangeDialog.member) return;
+
+    const memberId = statusChangeDialog.member.id;
+    const newStatus = statusChangeDialog.newStatus;
+    setSaving(true);
+
+    try {
+      const res = await fetch(`/api/manage-team/members`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: memberId,
+          status: newStatus,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update member status");
+      }
+
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message || "API error");
+      }
+
+      setTeamMembers((prev) =>
+        prev.map((m) => (m.id === memberId ? { ...m, status: newStatus } : m))
       );
+
+      toast.success(
+        `Member ${
+          newStatus === "active" ? "activated" : "deactivated"
+        } successfully`
+      );
+      setStatusChangeDialog({ open: false, member: null, newStatus: "active" });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to update status. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    setStatusChangeDialog({ open: false, member: null, newStatus: "active" });
   };
 
   const handleEditMember = (member: TeamMember) => {
+    if (isMainAdmin(member.role_id)) return;
     setEditMember({
       fullName: member.fullName,
       email: member.email,
-      role: member.role,
+      role_id: member.role_id ? member.role_id : undefined,
     });
-    setEditDialog({ open: true, member });
+
+    setEditDialog({
+      open: true,
+      member,
+    });
   };
 
-  const confirmEdit = () => {
-    if (editDialog.member) {
-      setTeamMembers(
-        teamMembers.map((m) =>
-          m.id === editDialog.member!.id
+  const confirmEdit = async () => {
+    if (!editDialog.member) return;
+
+    const userId = editDialog.member.id;
+    setSaving(true);
+
+    try {
+      const res = await fetch(`/api/manage-team/members`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          full_name: editMember.fullName,
+          email: editMember.email,
+          role_id: editMember.role_id,
+          id: userId,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update member");
+      }
+
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error("API error");
+      }
+      setSaving(false);
+      setTeamMembers((prev) =>
+        prev.map((m) =>
+          m.id === userId
             ? {
                 ...m,
-                fullName: editMember.fullName,
-                email: editMember.email,
-                role: editMember.role,
-                avatar: editMember.fullName
+                fullName: json.data.full_name,
+                email: json.data.email,
+                role_id: json.data.role_id,
+                avatar: json.data.full_name
                   .split(" ")
-                  .map((n) => n[0])
+                  .map((n: string) => n[0])
                   .join("")
                   .toUpperCase()
                   .slice(0, 2),
@@ -398,26 +501,57 @@ export default function AdminTeamManagementPage() {
             : m
         )
       );
+
+      setEditDialog({ open: false, member: null });
+    } catch (err) {
+      setSaving(false);
+      toast.error("Failed to update member. Please try again.");
     }
-    setEditDialog({ open: false, member: null });
   };
 
   const handleDeleteMember = (member: TeamMember) => {
+    if (isMainAdmin(member.role_id)) return;
     setDeleteDialog({ open: true, member });
   };
 
-  const confirmDelete = () => {
-    if (deleteDialog.member) {
-      setTeamMembers(teamMembers.filter((m) => m.id !== deleteDialog.member!.id));
+  const confirmDelete = async () => {
+    if (!deleteDialog.member) return;
+
+    const memberId = deleteDialog.member.id;
+    setSaving(true);
+
+    try {
+      const res = await fetch(`/api/manage-team/members`, {
+        method: "DELETE",
+        body: JSON.stringify({ id: memberId }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to delete member");
+      }
+
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.message || "API error");
+      }
+
+      // Update local state
+      setTeamMembers((prev) => prev.filter((m) => m.id !== memberId));
+      toast.success("Member deleted successfully");
+      setDeleteDialog({ open: false, member: null });
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to delete member. Please try again.");
+    } finally {
+      setSaving(false);
     }
-    setDeleteDialog({ open: false, member: null });
   };
 
-  const handleRoleChange = (memberId: string, newRole: "manager" | "associate") => {
-    setTeamMembers(
-      teamMembers.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
-    );
-  };
+  // const handleRoleChange = (memberId: string, newRole: string) => {
+  //   setTeamMembers(
+  //     teamMembers.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
+  //   );
+  // };
 
   return (
     <div className="flex flex-1 flex-col h-[80vh] p-6 gap-4">
@@ -440,7 +574,8 @@ export default function AdminTeamManagementPage() {
             <DialogHeader>
               <DialogTitle>Add New Team Member</DialogTitle>
               <DialogDescription>
-                Add a new member to your team. They'll receive an invitation email.
+                Add a new member to your team. They'll receive an invitation
+                email.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -468,19 +603,24 @@ export default function AdminTeamManagementPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="role">Role</Label>
+                <Label htmlFor="edit-role">Role</Label>
+
                 <Select
-                  value={newMember.role}
-                  onValueChange={(value: "manager" | "associate") =>
-                    setNewMember({ ...newMember, role: value })
+                  value={newMember.role_id?.toString()}
+                  onValueChange={(value) =>
+                    setNewMember({ ...newMember, role_id: Number(value) })
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select role" />
                   </SelectTrigger>
+
                   <SelectContent>
-                    <SelectItem value="associate">Associate</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id.toString()}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -494,9 +634,14 @@ export default function AdminTeamManagementPage() {
               </Button>
               <Button
                 onClick={handleAddMember}
-                disabled={!newMember.fullName || !newMember.email}
+                disabled={
+                  saving ||
+                  !newMember.fullName ||
+                  !newMember.email ||
+                  !newMember.role_id
+                }
               >
-                Add Member
+                {saving ? "Adding..." : "Add Member"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -560,49 +705,73 @@ export default function AdminTeamManagementPage() {
             <CardHeader className="pb-2 px-4 pt-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="text-sm font-bold">Team Growth</CardTitle>
-                  <CardDescription className="text-[10px] mt-0.5">Last 6 months</CardDescription>
+                  <CardTitle className="text-sm font-bold">
+                    Team Growth
+                  </CardTitle>
+                  <CardDescription className="text-[10px] mt-0.5">
+                    Last 6 months
+                  </CardDescription>
                 </div>
                 <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-green-50 dark:bg-green-950/30">
                   <TrendingUp className="h-3 w-3 text-green-600" />
-                  <span className="text-[10px] font-bold text-green-600">+200%</span>
+                  <span className="text-[10px] font-bold text-green-600">
+                    +200%
+                  </span>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="px-2 pb-2">
               <ResponsiveContainer width="100%" height={160}>
-                <AreaChart data={TEAM_GROWTH_DATA} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <AreaChart
+                  data={TEAM_GROWTH_DATA}
+                  margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
+                >
                   <defs>
-                    <linearGradient id="colorMembers" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
+                    <linearGradient
+                      id="colorMembers"
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="1"
+                    >
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                      <stop
+                        offset="95%"
+                        stopColor="#3b82f6"
+                        stopOpacity={0.05}
+                      />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" strokeOpacity={0.3} vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e5e7eb"
+                    strokeOpacity={0.3}
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="month"
                     stroke="#9ca3af"
-                    style={{ fontSize: '10px' }}
+                    style={{ fontSize: "10px" }}
                     tickLine={false}
                     axisLine={false}
                   />
-                  <YAxis 
+                  <YAxis
                     stroke="#9ca3af"
-                    style={{ fontSize: '10px' }}
+                    style={{ fontSize: "10px" }}
                     tickLine={false}
                     axisLine={false}
                     width={30}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: 'rgba(255, 255, 255, 0.98)',
-                      border: 'none',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      padding: '8px 12px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      backgroundColor: "rgba(255, 255, 255, 0.98)",
+                      border: "none",
+                      borderRadius: "12px",
+                      fontSize: "11px",
+                      padding: "8px 12px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     }}
-                    labelStyle={{ fontWeight: 600, marginBottom: '4px' }}
+                    labelStyle={{ fontWeight: 600, marginBottom: "4px" }}
                   />
                   <Area
                     type="monotone"
@@ -610,8 +779,18 @@ export default function AdminTeamManagementPage() {
                     stroke="#3b82f6"
                     strokeWidth={2.5}
                     fill="url(#colorMembers)"
-                    dot={{ r: 3, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                    activeDot={{ r: 5, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                    dot={{
+                      r: 3,
+                      fill: "#3b82f6",
+                      strokeWidth: 2,
+                      stroke: "#fff",
+                    }}
+                    activeDot={{
+                      r: 5,
+                      fill: "#3b82f6",
+                      strokeWidth: 2,
+                      stroke: "#fff",
+                    }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -621,17 +800,24 @@ export default function AdminTeamManagementPage() {
           {/* Activity Timeline */}
           <Card className="border-none shadow-sm flex-1 min-h-0">
             <CardHeader className="pb-2 px-4 pt-4">
-              <CardTitle className="text-sm font-bold">Activity Timeline</CardTitle>
-              <CardDescription className="text-[10px] mt-0.5">Recent team changes</CardDescription>
+              <CardTitle className="text-sm font-bold">
+                Activity Timeline
+              </CardTitle>
+              <CardDescription className="text-[10px] mt-0.5">
+                Recent team changes
+              </CardDescription>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="space-y-2.5">
                 {RECENT_ACTIVITIES.map((activity, idx) => {
                   const display = getActivityDisplay(activity);
                   const Icon = display.icon;
-                  
+
                   return (
-                    <div key={activity.id} className="flex items-start gap-2.5 group">
+                    <div
+                      key={activity.id}
+                      className="flex items-start gap-2.5 group"
+                    >
                       <div
                         className={`h-7 w-7 rounded-lg bg-linear-to-br ${generateGradient(
                           activity.avatar
@@ -641,9 +827,12 @@ export default function AdminTeamManagementPage() {
                       </div>
                       <div className="flex-1 min-w-0 pt-0.5">
                         <p className="text-[11px] leading-relaxed">
-                          <span className="font-semibold text-foreground">{activity.user}</span>
-                          {" "}
-                          <span className="text-muted-foreground">{display.text}</span>
+                          <span className="font-semibold text-foreground">
+                            {activity.user}
+                          </span>{" "}
+                          <span className="text-muted-foreground">
+                            {display.text}
+                          </span>
                         </p>
                         <div className="flex items-center gap-1 mt-0.5">
                           <Icon className={`h-2.5 w-2.5 ${display.color}`} />
@@ -660,7 +849,7 @@ export default function AdminTeamManagementPage() {
           </Card>
         </div>
 
-        {/* Right Column - Team Members List (Scrollable) */}
+        {/* Right Column - Team Members List */}
         <div className="lg:col-span-2 min-h-0">
           <Card className="border-none shadow-sm h-full flex flex-col overflow-hidden">
             <CardHeader className="shrink-0 pb-2 px-4 pt-4 border-b border-border/40">
@@ -671,104 +860,75 @@ export default function AdminTeamManagementPage() {
             </CardHeader>
             <CardContent className="flex-1 overflow-y-auto px-4 py-3">
               <div className="space-y-2 pr-1">
-            {teamMembers.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl border bg-card/50 hover:bg-accent/5 hover:shadow-sm transition-all group"
-              >
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  {/* Avatar with gradient */}
+                {teamMembers.map((member) => (
                   <div
-                    className={`h-9 w-9 rounded-lg bg-linear-to-br ${generateGradient(
-                      member.avatar
-                    )} flex items-center justify-center text-white font-bold text-[10px] shadow-sm shrink-0 group-hover:scale-105 transition-transform`}
+                    key={member.id}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl border bg-card/50 hover:bg-accent/5 hover:shadow-sm transition-all group ${
+                      member.role_id === 1
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
-                    {member.avatar}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-semibold text-xs truncate">{member.fullName}</p>
-                      <Badge
-                        variant={member.role === "manager" ? "default" : "secondary"}
-                        className="text-[9px] h-4 px-1.5 shrink-0"
+                    <div className="flex items-center gap-2">
+                      <div
+                        className={`h-9 w-9 rounded-lg bg-linear-to-br ${generateGradient(
+                          member.avatar
+                        )} flex items-center justify-center text-white font-bold text-[10px] shadow-sm shrink-0 group-hover:scale-105 transition-transform`}
                       >
-                        {member.role}
-                      </Badge>
+                        {member.avatar}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-semibold text-xs truncate">
+                            {member.fullName}
+                          </p>
+                          <Badge
+                            variant={
+                              member.role_id === 1 ? "default" : "secondary"
+                            }
+                            className="text-[9px] h-4 px-1.5 shrink-0"
+                          >
+                            {getRoleName(member.role_id)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
+                          <Mail className="h-2.5 w-2.5 shrink-0" />
+                          <p className="truncate">{member.email}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5">
-                      <Mail className="h-2.5 w-2.5 shrink-0" />
-                      <p className="truncate">{member.email}</p>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Switch
+                        checked={member.status === "active"}
+                        disabled={isMainAdmin(member.role_id) || saving}
+                        onCheckedChange={() => handleStatusToggle(member)}
+                      />
+
+                      <div className="flex gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={member.role_id === 1}
+                          onClick={() => handleEditMember(member)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={member.role_id === 1}
+                          onClick={() => handleDeleteMember(member)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {/* Status Toggle */}
-                  <div className="flex items-center gap-1.5">
-                    <Label
-                      htmlFor={`status-${member.id}`}
-                      className="text-[10px] text-muted-foreground cursor-pointer"
-                    >
-                      {member.status === "active" ? (
-                        <span className="flex items-center gap-0.5 text-green-600">
-                          <CheckCircle2 className="h-2.5 w-2.5" />
-                          <span className="hidden xl:inline">Active</span>
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-0.5 text-red-600">
-                          <XCircle className="h-2.5 w-2.5" />
-                          <span className="hidden xl:inline">Inactive</span>
-                        </span>
-                      )}
-                    </Label>
-                    <Switch
-                      id={`status-${member.id}`}
-                      checked={member.status === "active"}
-                      onCheckedChange={() => handleStatusToggle(member)}
-                    />
-                  </div>
-
-                  {/* Role Dropdown */}
-                  <Select
-                    value={member.role}
-                    onValueChange={(value: "manager" | "associate") =>
-                      handleRoleChange(member.id, value)
-                    }
-                  >
-                    <SelectTrigger className="w-[100px] h-7 text-[10px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="associate">Associate</SelectItem>
-                      <SelectItem value="manager">Manager</SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent"
-                      onClick={() => handleEditMember(member)}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDeleteMember(member)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -787,7 +947,9 @@ export default function AdminTeamManagementPage() {
               Update the member's information below.
             </DialogDescription>
           </DialogHeader>
+
           <div className="grid gap-4 py-4">
+            {/* Full Name */}
             <div className="grid gap-2">
               <Label htmlFor="edit-fullName">Full Name</Label>
               <Input
@@ -799,6 +961,8 @@ export default function AdminTeamManagementPage() {
                 }
               />
             </div>
+
+            {/* Email */}
             <div className="grid gap-2">
               <Label htmlFor="edit-email">Email</Label>
               <Input
@@ -811,24 +975,32 @@ export default function AdminTeamManagementPage() {
                 }
               />
             </div>
+
+            {/* Role (Dynamic from API) */}
             <div className="grid gap-2">
               <Label htmlFor="edit-role">Role</Label>
+
               <Select
-                value={editMember.role}
-                onValueChange={(value: "manager" | "associate") =>
-                  setEditMember({ ...editMember, role: value })
+                value={editMember.role_id?.toString()}
+                onValueChange={(value) =>
+                  setEditMember({ ...editMember, role_id: Number(value) })
                 }
               >
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select role" />
                 </SelectTrigger>
+
                 <SelectContent>
-                  <SelectItem value="associate">Associate</SelectItem>
-                  <SelectItem value="manager">Manager</SelectItem>
+                  {roles.map((role) => (
+                    <SelectItem key={role.id} value={role.id.toString()}>
+                      {role.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
+
           <DialogFooter>
             <Button
               variant="outline"
@@ -836,11 +1008,15 @@ export default function AdminTeamManagementPage() {
             >
               Cancel
             </Button>
+
             <Button
+              className="cursor-pointer"
               onClick={confirmEdit}
-              disabled={!editMember.fullName || !editMember.email}
+              disabled={
+                !editMember.fullName || !editMember.email || !editMember.role_id
+              }
             >
-              Save Changes
+              {saving ? "Saving..." : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -857,11 +1033,15 @@ export default function AdminTeamManagementPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Status Change</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to {statusChangeDialog.newStatus === "active" ? "enable" : "disable"} login access for{" "}
+              Are you sure you want to{" "}
+              {statusChangeDialog.newStatus === "active" ? "enable" : "disable"}{" "}
+              login access for{" "}
               <span className="font-semibold">
                 {statusChangeDialog.member?.fullName}
               </span>
-              ? {statusChangeDialog.newStatus === "inactive" && "They will not be able to access the system."}
+              ?{" "}
+              {statusChangeDialog.newStatus === "inactive" &&
+                "They will not be able to access the system."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -883,7 +1063,9 @@ export default function AdminTeamManagementPage() {
             <AlertDialogTitle>Delete Team Member</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to remove{" "}
-              <span className="font-semibold">{deleteDialog.member?.fullName}</span>{" "}
+              <span className="font-semibold">
+                {deleteDialog.member?.fullName}
+              </span>{" "}
               from your team? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -892,8 +1074,9 @@ export default function AdminTeamManagementPage() {
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={saving}
             >
-              Delete
+              {saving ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

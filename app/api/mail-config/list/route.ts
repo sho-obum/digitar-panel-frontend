@@ -64,8 +64,3 @@ export async function GET(req: Request) {
     );
   }
 }
-
-
-// const res = await fetch("/api/mail-config/list");
-// const json = await res.json();
-// console.log(json.configs);

@@ -36,10 +36,6 @@ export async function POST(request: Request) {
     }
 
     const data = await response.json();
-    console.log('✅ PHP API Response received');
-    console.log('📊 Data count:', data.data?.length || 0);
-    console.log('📄 Total pages:', data.total_pages);
-    console.log('📈 Total records:', data.total);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Error fetching campaign details by date:', error);
