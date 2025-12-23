@@ -63,6 +63,12 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
+interface Role {
+  id: number;
+  name: string;
+  key: string;
+}
+
 interface TeamMember {
   id: string;
   fullName: string;
@@ -74,14 +80,6 @@ interface TeamMember {
   joinedDate: string;
 }
 
-interface Role {
-  id: number;
-  name: string;
-  key?: string;
-}
-const [roles, setRoles] = useState<Role[]>([]);
-
-// Mock data for team growth chart (last 6 months)
 const TEAM_GROWTH_DATA = [
   { month: "Jun", members: 4 },
   { month: "Jul", members: 5 },
@@ -91,7 +89,6 @@ const TEAM_GROWTH_DATA = [
   { month: "Nov", members: 12 },
 ];
 
-// Activity types and timeline
 interface Activity {
   id: string;
   user: string;
@@ -524,6 +521,9 @@ export default function AdminTeamManagementPage() {
     try {
       const res = await fetch(`/api/manage-team/members`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ id: memberId }),
       });
 
