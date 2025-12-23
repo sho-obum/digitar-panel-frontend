@@ -33,22 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    if (!user_role || !(await userPermission(user_id, user_role, pathname))) {
-      log.warn(
-        "GET /api/manage-team/users: Forbidden - insufficient permissions",
-        {
-          user_id,
-          ip: userIp,
-          time: new Date().toISOString(),
-        }
-      );
-      return NextResponse.json(
-        { success: false, msg: "Forbidden: insufficient permissions" },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json({ success: true, rows });
+    return NextResponse.json({ success: true });
   } catch (err: any) {
     log.error("GET /api/manage-team/users: Error", {
       error: err.message,

@@ -12,10 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -38,20 +35,36 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
+interface Role {
+  id: string;
+  name: string;
+}
+
+interface Page {
+  key?: string;
+  label?: string;
+  category?: string;
+  category_id?: string;
+  items?: Page[];
+}
+
 export default function RoleAccessPage() {
-  const [roles, setRoles] = useState([]);
-  const [pagesData, setPagesData] = useState([]);
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [pagesData, setPagesData] = useState<Page[]>([]);
   const [isCreateRoleOpen, setIsCreateRoleOpen] = useState(false);
   const [newRoleName, setNewRoleName] = useState("");
-  const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const [collapsedCategories, setCollapsedCategories] = useState<
+    Record<string, boolean>
+  >({});
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [permissions, setPermissions] = useState<Record<string, Record<string, boolean>>>({});
+  const [permissions, setPermissions] = useState<
+    Record<string, Record<string, boolean>>
+  >({});
   const [pendingAction, setPendingAction] = useState<{
     pageKey: string;
     roleId: string;
     newValue: boolean;
   } | null>(null);
-
 
   const toggleCategory = (categoryKey: string) => {
     setCollapsedCategories((prev) => ({
@@ -59,10 +72,6 @@ export default function RoleAccessPage() {
       [categoryKey]: !prev[categoryKey],
     }));
   };
-
-
-
-
 
   const confirmPermissionChange = async () => {
     if (!pendingAction) return;
@@ -83,7 +92,7 @@ export default function RoleAccessPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update");
 
-      setPermissions(prev => ({
+      setPermissions((prev) => ({
         ...prev,
         [pageKey]: {
           ...prev[pageKey],
@@ -104,8 +113,11 @@ export default function RoleAccessPage() {
     setPendingAction(null);
   };
 
-
-  const requestTogglePermission = (pageKey: string, roleId: string, currentValue: boolean) => {
+  const requestTogglePermission = (
+    pageKey: string,
+    roleId: string,
+    currentValue: boolean
+  ) => {
     setPendingAction({
       pageKey,
       roleId,
@@ -147,8 +159,7 @@ export default function RoleAccessPage() {
                 roleJson.data.forEach((role: any) => {
                   // Find in DB
                   const found = dbPermissions.find(
-                    (p: any) =>
-                      p.page_key === item.key && p.role_id === role.id
+                    (p: any) => p.page_key === item.key && p.role_id === role.id
                   );
 
                   newPermissions[item.key][role.id] = found
@@ -170,9 +181,6 @@ export default function RoleAccessPage() {
     loadData();
   }, []);
 
-
-
-
   const handleCreateRole = async () => {
     if (!newRoleName.trim()) return;
 
@@ -189,7 +197,6 @@ export default function RoleAccessPage() {
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create role");
-
 
       const refresh = await fetch(`/api/roles/create`);
       const roleList = await refresh.json();
@@ -213,7 +220,6 @@ export default function RoleAccessPage() {
     }
   };
 
-
   // const handleDeleteRole = (roleId: number) => {
   //   setRoles(roles.filter((r) => r.id !== roleId));
   //   const newPerms: Record<string, Record<string, boolean>> = {};
@@ -224,7 +230,10 @@ export default function RoleAccessPage() {
   //   setPermissions(newPerms);
   // };
 
-  const renderPageRows = (items: any[], parentKey: string = ""): React.ReactNode[] => {
+  const renderPageRows = (
+    items: any[],
+    parentKey: string = ""
+  ): React.ReactNode[] => {
     const rows: React.ReactNode[] = [];
     items.forEach((item, index) => {
       if (item.category) {
@@ -249,7 +258,9 @@ export default function RoleAccessPage() {
                   <ChevronDown className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                 )}
                 <div className="h-1 w-1 rounded-full bg-indigo-400" />
-                <span className="text-indigo-700 dark:text-indigo-300">{item.category}</span>
+                <span className="text-indigo-700 dark:text-indigo-300">
+                  {item.category}
+                </span>
               </div>
             </TableCell>
           </TableRow>
@@ -277,7 +288,11 @@ export default function RoleAccessPage() {
                   <Checkbox
                     checked={permissions[item.key]?.[role.id] || false}
                     onCheckedChange={() =>
-                      requestTogglePermission(item.key, role.id, permissions[item.key]?.[role.id])
+                      requestTogglePermission(
+                        item.key,
+                        role.id,
+                        permissions[item.key]?.[role.id]
+                      )
                     }
                     className="data-[state=checked]:bg-gradient-to-br data-[state=checked]:from-indigo-500 data-[state=checked]:to-purple-500 data-[state=checked]:border-0 transition-all hover:scale-110 border-2  border-black"
                   />
@@ -312,10 +327,15 @@ export default function RoleAccessPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-
-              <Dialog open={isCreateRoleOpen} onOpenChange={setIsCreateRoleOpen}>
+              <Dialog
+                open={isCreateRoleOpen}
+                onOpenChange={setIsCreateRoleOpen}
+              >
                 <DialogTrigger asChild>
-                  <Button size="sm" className="bg-black hover:bg-black/90 text-white">
+                  <Button
+                    size="sm"
+                    className="bg-black hover:bg-black/90 text-white"
+                  >
                     <Plus className="mr-2 h-4 w-4" />
                     Create Role
                   </Button>
@@ -329,12 +349,16 @@ export default function RoleAccessPage() {
                       Create New Role
                     </DialogTitle>
                     <DialogDescription>
-                      Add a new role to the permission matrix. You can configure permissions after creation.
+                      Add a new role to the permission matrix. You can configure
+                      permissions after creation.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="role-name" className="text-sm font-medium">
+                      <Label
+                        htmlFor="role-name"
+                        className="text-sm font-medium"
+                      >
                         Role Name
                       </Label>
                       <Input
@@ -384,11 +408,16 @@ export default function RoleAccessPage() {
                     </div>
                   </TableHead>
                   {roles.map((role) => (
-                    <TableHead key={role.id} className="text-center min-w-[140px] font-semibold">
+                    <TableHead
+                      key={role.id}
+                      className="text-center min-w-[140px] font-semibold"
+                    >
                       <div className="flex items-center justify-center gap-2 px-2">
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-200/50 dark:border-indigo-800/50">
                           <Shield className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                          <span className="text-sm font-semibold">{role.name}</span>
+                          <span className="text-sm font-semibold">
+                            {role.name}
+                          </span>
                         </div>
                         {/* <Button
                         variant="ghost"
@@ -417,7 +446,7 @@ export default function RoleAccessPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                    {renderPageRows(section.items)}
+                    {renderPageRows(section.items || [])}
                   </React.Fragment>
                 ))}
               </TableBody>
@@ -450,4 +479,3 @@ export default function RoleAccessPage() {
     </>
   );
 }
-

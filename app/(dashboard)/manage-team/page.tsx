@@ -238,6 +238,7 @@ export default function AdminTeamManagementPage() {
     role_id: undefined,
   });
 
+  const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
 
   const isMainAdmin = (role_id: number | null) =>
