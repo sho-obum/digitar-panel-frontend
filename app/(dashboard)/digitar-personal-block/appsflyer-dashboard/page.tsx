@@ -189,17 +189,17 @@ export default function AppsflyerDashboard() {
   const [dateRange, setDateRange] = useState(() => {
     const today = new Date();
     return {
-      from: subDays(today, 7),
+      from: today,
       to: today,
-      preset: "last7days",
+      preset: "today",
     };
   });
   const [pendingDateRange, setPendingDateRange] = useState(() => {
     const today = new Date();
     return {
-      from: subDays(today, 7),
+      from: today,
       to: today,
-      preset: "last7days",
+      preset: "today",
     };
   });
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
