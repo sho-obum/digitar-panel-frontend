@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
  ON pc.id = p.category_id
  AND pc.status = 'active'
  WHERE u.id = UUID_TO_BIN(?)
- AND r.allowed = 1
+ AND r.allowed = 1 ORDER BY category_order, page_order
       `,
       [userId]
     );

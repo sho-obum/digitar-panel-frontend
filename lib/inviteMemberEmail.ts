@@ -35,7 +35,7 @@ export const inviteMemberEmail = async (
 
             <p style="background:#f3f4f6; padding:12px; border-radius:6px;">
               <strong>Email:</strong> ${email}<br />
-              <strong>Temporary Password:</strong> ${password}
+              <strong>Password:</strong> ${password}
             </p>
 
             <p>
@@ -58,7 +58,7 @@ export const inviteMemberEmail = async (
                       font-weight:600;
                     "
                   >
-                    Verify your account
+                    Follow the link below to login
                   </a>
                 </td>
               </tr>
